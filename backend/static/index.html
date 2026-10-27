@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PM MVP Backend Scaffolding</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 2rem;
+        font-family: Arial, sans-serif;
+        color: #032147;
+        background: #f7fbff;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        color: #444;
+      }
+      pre {
+        background: #fff;
+        border: 1px solid #d9e7f3;
+        border-radius: 8px;
+        padding: 0.75rem;
+      }
+      button {
+        background: #753991;
+        border: 0;
+        border-radius: 999px;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+        padding: 0.65rem 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Backend scaffolding is running</h1>
+    <p>This is a temporary static page served by FastAPI.</p>
+    <button id="check-api" type="button">Call /api/hello</button>
+    <pre id="result">No API call yet.</pre>
+
+    <script>
+      const button = document.getElementById("check-api");
+      const result = document.getElementById("result");
+
+      button.addEventListener("click", async () => {
+        result.textContent = "Loading...";
+        try {
+          const response = await fetch("/api/hello");
+          const payload = await response.json();
+          result.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          result.textContent = String(error);
+        }
+      });
+    </script>
+  </body>
+</html>
