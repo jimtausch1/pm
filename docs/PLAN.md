@@ -137,9 +137,9 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 10: Sidebar AI UI
 
 ### Checklist
-- [ ] Add sidebar chat UI using project color scheme.
-- [ ] Implement chat send/receive and conversation rendering.
-- [ ] Support mutation confirmation UX and automatic board refresh after apply.
+- [x] Add sidebar chat UI using project color scheme.
+- [x] Implement chat send/receive and conversation rendering.
+- [x] Support mutation confirmation UX and automatic board refresh after apply.
 
 ### Validation
 - End-to-end flow: user prompt -> AI response -> optional confirmation -> board update.

@@ -185,10 +185,11 @@ def test_ai_connectivity_check_missing_api_key():
     app = _app_with_temp_db()
     os.environ.pop("OPENROUTER_API_KEY", None)
     try:
-        with TestClient(app) as client:
-            response = client.get("/api/ai/connectivity-check")
-            assert response.status_code == 500
-            assert "OPENROUTER_API_KEY is not configured" in response.json()["detail"]
+        with patch("app.main._load_env_file", return_value=None):
+            with TestClient(app) as client:
+                response = client.get("/api/ai/connectivity-check")
+                assert response.status_code == 500
+                assert "OPENROUTER_API_KEY is not configured" in response.json()["detail"]
     finally:
         os.environ.pop("PM_DB_PATH", None)
 

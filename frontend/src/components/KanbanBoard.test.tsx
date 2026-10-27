@@ -43,4 +43,14 @@ describe("KanbanBoard", () => {
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
   });
+
+  it("shows AI sidebar with send disabled when username is not provided", () => {
+    render(<KanbanBoard />);
+    expect(screen.getByText("Sidebar Chat")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /send/i,
+      })
+    ).toBeDisabled();
+  });
 });

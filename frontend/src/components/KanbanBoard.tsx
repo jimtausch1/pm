@@ -19,12 +19,46 @@ import {
   initialData,
   moveCard,
   toBoardData,
+  type BackendBoard,
   type BoardData,
 } from "@/lib/kanban";
 
 type KanbanBoardProps = {
   username?: string;
   onLogout?: () => void;
+};
+
+type ChatRole = "user" | "assistant" | "system";
+
+type AiChatMessage = {
+  id: number;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+};
+
+type AiPendingAction = {
+  id: number;
+  actionType: "create_card" | "edit_card" | "move_card";
+  payload: Record<string, unknown>;
+  description: string;
+  createdAt?: string;
+  requiresConfirmation?: boolean;
+};
+
+type AiChatContextResponse = {
+  messages: AiChatMessage[];
+  pendingActions: AiPendingAction[];
+};
+
+type AiSendMessageResponse = {
+  reply: string;
+  pendingActions: AiPendingAction[];
+};
+
+type AiActionDecisionResponse = {
+  status: "applied" | "rejected";
+  board?: BackendBoard;
 };
 
 const fetchJson = async <T,>(url: string, init?: RequestInit): Promise<T> => {
@@ -46,6 +80,13 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
   const [overId, setOverId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(username));
   const [error, setError] = useState("");
+
+  const [chatMessages, setChatMessages] = useState<AiChatMessage[]>([]);
+  const [pendingActions, setPendingActions] = useState<AiPendingAction[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(Boolean(username));
+  const [chatError, setChatError] = useState("");
+  const [actingActionId, setActingActionId] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,7 +113,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     }
     setIsLoading(true);
     try {
-      const backendBoard = await fetchJson<import("@/lib/kanban").BackendBoard>(
+      const backendBoard = await fetchJson<BackendBoard>(
         `/api/board/${encodeURIComponent(username)}`
       );
       setBoard(toBoardData(backendBoard));
@@ -85,8 +126,32 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     }
   };
 
+  const loadAiContext = async () => {
+    if (!username) {
+      return;
+    }
+    setIsChatLoading(true);
+    try {
+      const context = await fetchJson<AiChatContextResponse>(
+        `/api/ai/${encodeURIComponent(username)}/chat`
+      );
+      setChatMessages(context.messages);
+      setPendingActions(context.pendingActions);
+      setChatError("");
+    } catch (contextError) {
+      setChatError("Unable to load AI conversation.");
+      console.error(contextError);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (!username) {
+      return;
+    }
     void loadBoard();
+    void loadAiContext();
   }, [username]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -108,9 +173,9 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     }
 
     const activeId = String(active.id);
-    const overId = String(over.id);
+    const nextOverId = String(over.id);
 
-    const nextColumns = moveCard(board.columns, activeId, overId);
+    const nextColumns = moveCard(board.columns, activeId, nextOverId);
     setBoard((prev) => ({ ...prev, columns: nextColumns }));
 
     if (!username) {
@@ -211,6 +276,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     } catch (addError) {
       setError("Unable to persist new card right now.");
       console.error(addError);
+      await loadBoard();
     }
   };
 
@@ -246,6 +312,67 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     } catch (deleteError) {
       setError("Unable to persist card deletion right now.");
       console.error(deleteError);
+      await loadBoard();
+    }
+  };
+
+  const handleSendChat = async () => {
+    if (!username || !chatInput.trim() || isChatLoading) {
+      return;
+    }
+
+    const message = chatInput.trim();
+    setChatInput("");
+    setIsChatLoading(true);
+    try {
+      await fetchJson<AiSendMessageResponse>(`/api/ai/${encodeURIComponent(username)}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      await loadAiContext();
+      setChatError("");
+    } catch (sendError) {
+      setChatInput(message);
+      setChatError("Unable to send message to AI right now.");
+      console.error(sendError);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleDecideAction = async (actionId: number, approved: boolean) => {
+    if (!username || actingActionId !== null) {
+      return;
+    }
+    setActingActionId(actionId);
+    try {
+      const result = await fetchJson<AiActionDecisionResponse>(
+        `/api/ai/${encodeURIComponent(username)}/actions/${actionId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approved }),
+        }
+      );
+      if (approved && result.board) {
+        setBoard(toBoardData(result.board));
+      } else if (approved) {
+        await loadBoard();
+      }
+      await loadAiContext();
+      setChatError("");
+    } catch (decisionError) {
+      setChatError(
+        approved ? "Unable to apply action right now." : "Unable to reject action right now."
+      );
+      console.error(decisionError);
+      if (approved) {
+        await loadBoard();
+      }
+      await loadAiContext();
+    } finally {
+      setActingActionId(null);
     }
   };
 
@@ -256,7 +383,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
       <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
-      <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-10 px-6 pb-16 pt-12">
+      <main className="relative mx-auto flex min-h-screen max-w-[1680px] flex-col gap-10 px-6 pb-16 pt-12">
         <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
@@ -267,8 +394,8 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
                 Kanban Studio
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--gray-text)]">
-                Keep momentum visible. Rename columns, drag cards between stages,
-                and capture quick notes without getting buried in settings.
+                Keep momentum visible. Rename columns, drag cards between stages, and
+                capture quick notes without getting buried in settings.
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
@@ -290,15 +417,9 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
             </div>
           </div>
           {isLoading ? (
-            <p className="text-sm font-semibold text-[var(--gray-text)]">
-              Loading board...
-            </p>
+            <p className="text-sm font-semibold text-[var(--gray-text)]">Loading board...</p>
           ) : null}
-          {error ? (
-            <p role="alert" className="text-sm font-semibold text-red-600">
-              {error}
-            </p>
-          ) : null}
+          {error ? <p role="alert" className="text-sm font-semibold text-red-600">{error}</p> : null}
           <div className="flex flex-wrap items-center gap-4">
             {board.columns.map((column) => (
               <div
@@ -312,42 +433,149 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
           </div>
         </header>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragCancel={() => {
-            setActiveCardId(null);
-            setOverId(null);
-          }}
-          onDragEnd={(event) => {
-            void handleDragEnd(event);
-          }}
-        >
-          <section className="grid gap-6 lg:grid-cols-5">
-            {board.columns.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                cards={column.cardIds
-                  .map((cardId) => board.cards[cardId])
-                  .filter(Boolean)}
-                isDropTarget={Boolean(activeCardId) && overColumnId === column.id}
-                onRename={handleRenameColumn}
-                onAddCard={handleAddCard}
-                onDeleteCard={handleDeleteCard}
-              />
-            ))}
-          </section>
-          <DragOverlay>
-            {activeCard ? (
-              <div className="w-[260px]">
-                <KanbanCardPreview card={activeCard} />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragCancel={() => {
+              setActiveCardId(null);
+              setOverId(null);
+            }}
+            onDragEnd={(event) => {
+              void handleDragEnd(event);
+            }}
+          >
+            <section className="grid gap-6 lg:grid-cols-5">
+              {board.columns.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  cards={column.cardIds.map((cardId) => board.cards[cardId]).filter(Boolean)}
+                  isDropTarget={Boolean(activeCardId) && overColumnId === column.id}
+                  onRename={handleRenameColumn}
+                  onAddCard={handleAddCard}
+                  onDeleteCard={handleDeleteCard}
+                />
+              ))}
+            </section>
+            <DragOverlay>
+              {activeCard ? (
+                <div className="w-[260px]">
+                  <KanbanCardPreview card={activeCard} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+
+          <aside className="flex max-h-[calc(100vh-8rem)] min-h-[620px] flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-5 shadow-[var(--shadow)]">
+            <div className="border-b border-[var(--stroke)] pb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+                AI Assistant
+              </p>
+              <h2 className="mt-2 font-display text-2xl font-semibold text-[var(--navy-dark)]">
+                Sidebar Chat
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--gray-text)]">
+                Ask for card updates. Each proposed action requires approval before it is applied.
+              </p>
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto pr-1">
+              {isChatLoading && chatMessages.length === 0 ? (
+                <p className="text-sm font-semibold text-[var(--gray-text)]">Loading AI conversation...</p>
+              ) : null}
+              {chatError ? <p className="mb-3 text-sm font-semibold text-red-600">{chatError}</p> : null}
+              {chatMessages.length === 0 && !isChatLoading ? (
+                <p className="rounded-2xl border border-dashed border-[var(--stroke)] px-4 py-3 text-sm text-[var(--gray-text)]">
+                  No conversation yet. Ask AI to create, edit, or move cards.
+                </p>
+              ) : null}
+              <div className="space-y-3">
+                {chatMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${
+                      message.role === "user"
+                        ? "ml-6 border-[var(--primary-blue)] bg-[rgba(32,157,215,0.08)] text-[var(--navy-dark)]"
+                        : "mr-6 border-[var(--stroke)] bg-[var(--surface)] text-[var(--gray-text)]"
+                    }`}
+                  >
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em]">
+                      {message.role === "user" ? "You" : message.role}
+                    </p>
+                    <p>{message.content}</p>
+                  </div>
+                ))}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            </div>
+
+            <div className="mt-4 border-t border-[var(--stroke)] pt-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+                Pending actions
+              </p>
+              <div className="mt-2 space-y-2">
+                {pendingActions.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-[var(--stroke)] px-3 py-2 text-xs text-[var(--gray-text)]">
+                    No actions awaiting approval.
+                  </p>
+                ) : (
+                  pendingActions.map((action) => (
+                    <div key={action.id} className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] p-3">
+                      <p className="text-sm font-semibold text-[var(--navy-dark)]">{action.description}</p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDecideAction(action.id, true);
+                          }}
+                          disabled={actingActionId !== null}
+                          className="rounded-full bg-[var(--secondary-purple)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {actingActionId === action.id ? "Applying..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDecideAction(action.id, false);
+                          }}
+                          disabled={actingActionId !== null}
+                          className="rounded-full border border-[var(--stroke)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label htmlFor="ai-chat-input" className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+                Message
+              </label>
+              <textarea
+                id="ai-chat-input"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                className="min-h-[92px] w-full resize-none rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
+                placeholder="Move card 3 to Review and rename it for QA handoff."
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSendChat();
+                }}
+                disabled={!username || isChatLoading || !chatInput.trim()}
+                className="mt-3 w-full rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isChatLoading ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );
