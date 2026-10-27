@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 
@@ -90,6 +91,35 @@ class BoardStore:
                     FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE CASCADE,
                     UNIQUE(column_id, position)
                 );
+
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    board_id INTEGER NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_board_id_created_at
+                ON chat_messages(board_id, created_at);
+
+                CREATE TABLE IF NOT EXISTS ai_actions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    board_id INTEGER NOT NULL,
+                    action_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending', 'applied', 'rejected', 'failed')),
+                    assistant_message_id INTEGER,
+                    error_message TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+                    FOREIGN KEY (assistant_message_id) REFERENCES chat_messages(id) ON DELETE SET NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_ai_actions_board_id_status_created_at
+                ON ai_actions(board_id, status, created_at);
                 """
             )
             connection.commit()
@@ -410,3 +440,154 @@ class BoardStore:
                 raise
             else:
                 connection.commit()
+
+    def add_chat_message(self, username: str, role: str, content: str) -> int:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            cursor = connection.execute(
+                """
+                INSERT INTO chat_messages (board_id, role, content)
+                VALUES (?, ?, ?)
+                """,
+                (board_id, role, content),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def get_recent_chat_messages(self, username: str, limit: int = 20) -> list[dict]:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            rows = connection.execute(
+                """
+                SELECT id, role, content, created_at
+                FROM chat_messages
+                WHERE board_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (board_id, limit),
+            ).fetchall()
+
+            ordered_rows = list(reversed(rows))
+            return [
+                {
+                    "id": int(row["id"]),
+                    "role": str(row["role"]),
+                    "content": str(row["content"]),
+                    "createdAt": str(row["created_at"]),
+                }
+                for row in ordered_rows
+            ]
+
+    def create_ai_action(
+        self,
+        username: str,
+        action_type: str,
+        payload: dict,
+        assistant_message_id: int,
+    ) -> int:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            cursor = connection.execute(
+                """
+                INSERT INTO ai_actions (
+                    board_id,
+                    action_type,
+                    payload_json,
+                    status,
+                    assistant_message_id
+                )
+                VALUES (?, ?, ?, 'pending', ?)
+                """,
+                (board_id, action_type, json.dumps(payload), assistant_message_id),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def get_ai_action(self, username: str, action_id: int) -> dict:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            row = connection.execute(
+                """
+                SELECT
+                    id,
+                    action_type,
+                    payload_json,
+                    status,
+                    assistant_message_id,
+                    error_message,
+                    created_at,
+                    updated_at
+                FROM ai_actions
+                WHERE id = ? AND board_id = ?
+                """,
+                (action_id, board_id),
+            ).fetchone()
+            if not row:
+                raise ValueError("AI action not found.")
+
+            return {
+                "id": int(row["id"]),
+                "actionType": str(row["action_type"]),
+                "payload": json.loads(str(row["payload_json"])),
+                "status": str(row["status"]),
+                "assistantMessageId": (
+                    int(row["assistant_message_id"])
+                    if row["assistant_message_id"] is not None
+                    else None
+                ),
+                "errorMessage": str(row["error_message"])
+                if row["error_message"] is not None
+                else None,
+                "createdAt": str(row["created_at"]),
+                "updatedAt": str(row["updated_at"]),
+            }
+
+    def list_pending_ai_actions(self, username: str) -> list[dict]:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            rows = connection.execute(
+                """
+                SELECT id, action_type, payload_json, created_at
+                FROM ai_actions
+                WHERE board_id = ? AND status = 'pending'
+                ORDER BY id ASC
+                """,
+                (board_id,),
+            ).fetchall()
+
+            return [
+                {
+                    "id": int(row["id"]),
+                    "actionType": str(row["action_type"]),
+                    "payload": json.loads(str(row["payload_json"])),
+                    "createdAt": str(row["created_at"]),
+                }
+                for row in rows
+            ]
+
+    def set_ai_action_status(
+        self, username: str, action_id: int, status: str, error_message: str | None = None
+    ) -> None:
+        with self._connect() as connection:
+            self.ensure_user_board(username)
+            _, board_id = self._board_for_user(connection, username)
+            result = connection.execute(
+                """
+                UPDATE ai_actions
+                SET
+                    status = ?,
+                    error_message = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND board_id = ?
+                """,
+                (status, error_message, action_id, board_id),
+            )
+            if result.rowcount == 0:
+                raise ValueError("AI action not found.")
+            connection.commit()

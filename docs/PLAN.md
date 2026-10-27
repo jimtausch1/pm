@@ -109,9 +109,9 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 8: AI connectivity
 
 ### Checklist
-- [ ] Add backend OpenRouter client integration using `.env` key.
-- [ ] Use model `openai/gpt-oss-120b` for requests.
-- [ ] Add a simple backend connectivity check prompt (`2+2`).
+- [x] Add backend OpenRouter client integration using `.env` key.
+- [x] Use model `openai/gpt-oss-120b` for requests.
+- [x] Add a simple backend connectivity check prompt (`2+2`).
 
 ### Validation
 - Request reaches OpenRouter and returns a valid response.
@@ -123,9 +123,9 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 9: Structured AI orchestration
 
 ### Checklist
-- [ ] Send board JSON, user message, and recent conversation history to AI.
-- [ ] Enforce structured output contract with reply plus optional board mutation payload.
-- [ ] Add confirmation flow before applying AI-requested board mutations.
+- [x] Send board JSON, user message, and recent conversation history to AI.
+- [x] Enforce structured output contract with reply plus optional board mutation payload.
+- [x] Add confirmation flow before applying AI-requested board mutations.
 
 ### Validation
 - Contract tests cover valid response, malformed response, and no-update response.

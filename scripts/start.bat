@@ -16,7 +16,7 @@ if errorlevel 1 (
 )
 
 echo Starting container pm-mvp on http://localhost:8000 ...
-docker run --rm -d --name pm-mvp -p 8000:8000 -v "%DATA_DIR%:/app/backend/data" pm-mvp
+docker run --rm -d --name pm-mvp -p 8000:8000 -v "%DATA_DIR%:/app/backend/data" --env-file "%REPO_ROOT%\.env" pm-mvp
 if errorlevel 1 (
   echo Docker run failed.
   exit /b 1

@@ -23,6 +23,7 @@ This document defines the persistence approach for MVP and the path to future mu
 - `columns`: ordered, board-owned columns with editable titles.
 - `cards`: ordered, column-owned cards with title/details.
 - `chat_messages`: AI sidebar history context per board.
+- `ai_actions`: pending/applied/rejected AI mutation requests that require user confirmation.
 
 ## Ordering strategy
 
@@ -41,4 +42,5 @@ This document defines the persistence approach for MVP and the path to future mu
 
 - Keeps MVP implementation simple and local.
 - Supports current required operations (rename/move/edit/add/delete cards).
+- Stores AI conversation context and per-action confirmation state for safe mutation flows.
 - Avoids schema rewrites when real auth/multi-user is introduced later.

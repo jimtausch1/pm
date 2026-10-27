@@ -287,6 +287,83 @@
           ]
         }
       ]
+    },
+    {
+      "name": "ai_actions",
+      "description": "AI-requested board mutations that require per-action user confirmation.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primaryKey": true,
+          "autoIncrement": true
+        },
+        {
+          "name": "board_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "foreignKey": {
+            "table": "boards",
+            "column": "id",
+            "onDelete": "CASCADE"
+          }
+        },
+        {
+          "name": "action_type",
+          "type": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "payload_json",
+          "type": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "check": "status IN ('pending', 'applied', 'rejected', 'failed')"
+        },
+        {
+          "name": "assistant_message_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "foreignKey": {
+            "table": "chat_messages",
+            "column": "id",
+            "onDelete": "SET NULL"
+          }
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_ai_actions_board_id_status_created_at",
+          "unique": false,
+          "columns": [
+            "board_id",
+            "status",
+            "created_at"
+          ]
+        }
+      ]
     }
   ],
   "seedPlan": {

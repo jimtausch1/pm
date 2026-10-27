@@ -1,21 +1,21 @@
-"use client";
+'use client';
 
-import { FormEvent, useEffect, useState } from "react";
-import { KanbanBoard } from "@/components/KanbanBoard";
+import { KanbanBoard } from '@/components/KanbanBoard';
+import { FormEvent, useEffect, useState } from 'react';
 
-const AUTH_STORAGE_KEY = "pm-authenticated";
-const AUTH_USERNAME = "user";
-const AUTH_PASSWORD = "password";
+const AUTH_STORAGE_KEY = 'pm-authenticated';
+const AUTH_USERNAME = 'user';
+const AUTH_PASSWORD = 'password';
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (saved === "true") {
+    if (saved === 'true') {
       setIsAuthenticated(true);
     }
   }, []);
@@ -24,20 +24,20 @@ export default function Home() {
     event.preventDefault();
     if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
       setIsAuthenticated(true);
-      setError("");
-      setPassword("");
-      window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
+      setError('');
+      setPassword('');
+      window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
       return;
     }
 
-    setError("Invalid credentials.");
+    setError('Invalid credentials.');
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setUsername("");
-    setPassword("");
-    setError("");
+    setUsername('');
+    setPassword('');
+    setError('');
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
