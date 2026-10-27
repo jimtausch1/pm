@@ -166,3 +166,45 @@ export const createId = (prefix: string) => {
   const timePart = Date.now().toString(36);
   return `${prefix}-${randomPart}${timePart}`;
 };
+
+type BackendCard = {
+  id: number;
+  title: string;
+  details: string;
+  columnId: number;
+  position: number;
+};
+
+type BackendColumn = {
+  id: number;
+  key: string;
+  title: string;
+  position: number;
+  cardIds: number[];
+};
+
+export type BackendBoard = {
+  username: string;
+  boardId: number;
+  columns: BackendColumn[];
+  cards: Record<string, BackendCard>;
+};
+
+export const toBoardData = (backendBoard: BackendBoard): BoardData => {
+  const cards: Record<string, Card> = {};
+  for (const [id, card] of Object.entries(backendBoard.cards)) {
+    cards[id] = {
+      id,
+      title: card.title,
+      details: card.details,
+    };
+  }
+
+  const columns: Column[] = backendBoard.columns.map((column) => ({
+    id: column.key,
+    title: column.title,
+    cardIds: column.cardIds.map((cardId) => String(cardId)),
+  }));
+
+  return { columns, cards };
+};

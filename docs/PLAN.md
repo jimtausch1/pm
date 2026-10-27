@@ -66,9 +66,9 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 5: Database modeling
 
 ### Checklist
-- [ ] Define board/user schema and save JSON at [docs/database-schema.json](C:/Repos/pm/docs/database-schema.json).
-- [ ] Document persistence strategy in [docs/](C:/Repos/pm/docs/).
-- [ ] Obtain user sign-off before persistence API implementation.
+- [x] Define board/user schema and save JSON at [docs/database-schema.json](C:/Repos/pm/docs/database-schema.json).
+- [x] Document persistence strategy in [docs/](C:/Repos/pm/docs/).
+- [x] Obtain user sign-off before persistence API implementation.
 
 ### Validation
 - Schema covers users, board ownership, columns, cards, and ordering.
@@ -80,9 +80,9 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 6: Backend Kanban APIs
 
 ### Checklist
-- [ ] Implement backend routes for reading and mutating a signed-in user's board.
-- [ ] Add SQLite initialization that creates DB/tables automatically when missing.
-- [ ] Implement backend-level validation for payload shape and required fields.
+- [x] Implement backend routes for reading and mutating a signed-in user's board.
+- [x] Add SQLite initialization that creates DB/tables automatically when missing.
+- [x] Implement backend-level validation for payload shape and required fields.
 
 ### Validation
 - Unit tests cover create/edit/delete/move/rename operations.
