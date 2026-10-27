@@ -106,3 +106,34 @@ def test_move_card_across_columns():
             assert target_column["cardIds"][0] == card_id
     finally:
         os.environ.pop("PM_DB_PATH", None)
+
+
+def test_move_card_within_same_column_downward():
+    from fastapi.testclient import TestClient
+
+    app = _app_with_temp_db()
+    try:
+        with TestClient(app) as client:
+            board = client.get("/api/board/user").json()
+            backlog = next(
+                column for column in board["columns"] if column["key"] == "col-backlog"
+            )
+            original_ids = list(backlog["cardIds"])
+            assert len(original_ids) == 2
+
+            card_to_move = original_ids[0]
+            move = client.post(
+                f"/api/board/user/cards/{card_to_move}/move",
+                json={"targetColumnKey": "col-backlog", "targetPosition": 1},
+            )
+            assert move.status_code == 200
+
+            updated_board = client.get("/api/board/user").json()
+            updated_backlog = next(
+                column
+                for column in updated_board["columns"]
+                if column["key"] == "col-backlog"
+            )
+            assert updated_backlog["cardIds"] == [original_ids[1], original_ids[0]]
+    finally:
+        os.environ.pop("PM_DB_PATH", None)

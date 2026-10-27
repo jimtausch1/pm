@@ -7,3 +7,4 @@ This folder contains local run scripts for Dockerized development:
 - [start.sh](C:/Repos/pm/scripts/start.sh), [stop.sh](C:/Repos/pm/scripts/stop.sh): shell scripts (macOS/Linux).
 
 All start scripts build image `pm-mvp` and run container `pm-mvp` on port `8000`.
+They mount [backend/data/](C:/Repos/pm/backend/data/) into `/app/backend/data` so SQLite data persists across container restarts.

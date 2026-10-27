@@ -9,6 +9,7 @@ import { NewCardForm } from "@/components/NewCardForm";
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
+  isDropTarget?: boolean;
   onRename: (columnId: string, title: string) => Promise<void> | void;
   onAddCard: (
     columnId: string,
@@ -21,11 +22,12 @@ type KanbanColumnProps = {
 export const KanbanColumn = ({
   column,
   cards,
+  isDropTarget = false,
   onRename,
   onAddCard,
   onDeleteCard,
 }: KanbanColumnProps) => {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const { setNodeRef } = useDroppable({ id: column.id });
   const [draftTitle, setDraftTitle] = useState(column.title);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export const KanbanColumn = ({
       ref={setNodeRef}
       className={clsx(
         "flex min-h-[520px] flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] transition",
-        isOver && "ring-2 ring-[var(--accent-yellow)]"
+        isDropTarget && "ring-2 ring-[var(--accent-yellow)]"
       )}
       data-testid={`column-${column.id}`}
     >

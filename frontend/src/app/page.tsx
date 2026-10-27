@@ -42,7 +42,7 @@ export default function Home() {
   };
 
   if (isAuthenticated) {
-    return <KanbanBoard onLogout={handleLogout} />;
+    return <KanbanBoard username={AUTH_USERNAME} onLogout={handleLogout} />;
   }
 
   return (
@@ -91,7 +91,7 @@ export default function Home() {
           ) : null}
           <button
             type="submit"
-            className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
+            className="w-full rounded-full bg-(--secondary-purple) px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
           >
             Sign in
           </button>

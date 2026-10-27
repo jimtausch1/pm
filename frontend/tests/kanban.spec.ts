@@ -47,6 +47,30 @@ test("moves a card between columns", async ({ page }) => {
   await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
 });
 
+test("highlights target column during drag", async ({ page }) => {
+  await signIn(page);
+  const card = page.getByTestId("card-card-1");
+  const targetColumn = page.getByTestId("column-col-review");
+  const cardBox = await card.boundingBox();
+  const columnBox = await targetColumn.boundingBox();
+  if (!cardBox || !columnBox) {
+    throw new Error("Unable to resolve drag coordinates.");
+  }
+
+  await page.mouse.move(
+    cardBox.x + cardBox.width / 2,
+    cardBox.y + cardBox.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    columnBox.x + columnBox.width / 2,
+    columnBox.y + 120,
+    { steps: 12 }
+  );
+  await expect(targetColumn).toHaveClass(/ring-2/);
+  await page.mouse.up();
+});
+
 test("logs out back to sign in screen", async ({ page }) => {
   await signIn(page);
   await page.getByRole("button", { name: "Log out" }).click();

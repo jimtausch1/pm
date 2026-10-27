@@ -388,9 +388,6 @@ class BoardStore:
                     (source_column_id, source_position),
                 )
 
-                if source_column_id == destination_column_id and bounded_target > source_position:
-                    bounded_target -= 1
-
                 connection.execute(
                     """
                     UPDATE cards

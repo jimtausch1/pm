@@ -94,13 +94,14 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 ## Part 7: Frontend + backend integration
 
 ### Checklist
-- [ ] Replace frontend-only local board state with backend API calls.
-- [ ] Wire rename, add, delete, and drag/drop move operations through API.
-- [ ] Ensure UI refreshes from persisted backend state.
+- [x] Replace frontend-only local board state with backend API calls.
+- [x] Wire rename, add, delete, and drag/drop move operations through API.
+- [x] Ensure UI refreshes from persisted backend state.
 
 ### Validation
 - Integration tests verify state survives browser refresh.
 - Interaction parity with existing UX is preserved.
+- Drag-and-drop reliability regressions are covered (same-column reorder and drop-target highlighting).
 
 ### Success criteria
 - Kanban board is fully persistent and API-backed.
