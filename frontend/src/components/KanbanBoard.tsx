@@ -433,7 +433,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
           </div>
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}
@@ -447,7 +447,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
               void handleDragEnd(event);
             }}
           >
-            <section className="grid gap-6 lg:grid-cols-5">
+            <section className="grid grid-flow-col auto-cols-[minmax(280px,1fr)] gap-6 overflow-x-auto pb-2">
               {board.columns.map((column) => (
                 <KanbanColumn
                   key={column.id}
