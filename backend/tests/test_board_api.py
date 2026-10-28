@@ -156,6 +156,38 @@ def test_move_card_within_same_column_downward():
         os.environ.pop("PM_DB_PATH", None)
 
 
+def test_move_card_to_top_of_column_with_multiple_cards():
+    from fastapi.testclient import TestClient
+
+    app = _app_with_temp_db()
+    try:
+        with TestClient(app) as client:
+            def column_ids(key: str) -> list[int]:
+                board = client.get("/api/board/user").json()
+                return next(c for c in board["columns"] if c["key"] == key)["cardIds"]
+
+            progress_ids = column_ids("col-progress")
+            assert len(progress_ids) == 2
+            done_card = column_ids("col-done")[0]
+
+            move = client.post(
+                f"/api/board/user/cards/{done_card}/move",
+                json={"targetColumnKey": "col-progress", "targetPosition": 0},
+            )
+            assert move.status_code == 200
+            assert column_ids("col-progress") == [done_card, *progress_ids]
+
+            last_card = progress_ids[-1]
+            move = client.post(
+                f"/api/board/user/cards/{last_card}/move",
+                json={"targetColumnKey": "col-progress", "targetPosition": 0},
+            )
+            assert move.status_code == 200
+            assert column_ids("col-progress") == [last_card, done_card, progress_ids[0]]
+    finally:
+        os.environ.pop("PM_DB_PATH", None)
+
+
 def test_ai_connectivity_check_success():
     from fastapi.testclient import TestClient
 

@@ -418,13 +418,23 @@ class BoardStore:
                     (source_column_id, source_position),
                 )
 
+                # SQLite checks UNIQUE(column_id, position) per row, so shifting up in place
+                # collides. Move the rows to negative positions first, then to position + 1.
                 connection.execute(
                     """
                     UPDATE cards
-                    SET position = position + 1, updated_at = CURRENT_TIMESTAMP
+                    SET position = -(position + 2), updated_at = CURRENT_TIMESTAMP
                     WHERE column_id = ? AND position >= ? AND id != ?
                     """,
                     (destination_column_id, bounded_target, card_id),
+                )
+                connection.execute(
+                    """
+                    UPDATE cards
+                    SET position = -position - 1
+                    WHERE column_id = ? AND position < -1
+                    """,
+                    (destination_column_id,),
                 )
 
                 connection.execute(

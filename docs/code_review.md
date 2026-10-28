@@ -8,7 +8,7 @@ All 11 backend tests and 10 frontend unit tests pass; ESLint and `tsc --noEmit` 
 
 | # | Severity | Area | Finding |
 |---|----------|------|---------|
-| 1 | High | Backend | Moving a card in front of two or more cards fails with HTTP 500 |
+| 1 | High (fixed) | Backend | Moving a card in front of two or more cards fails with HTTP 500 |
 | 2 | Medium | Security | API has no authentication and the container listens on all network interfaces |
 | 3 | Medium | Backend | A failed AI call leaves an orphan user message, and retrying duplicates it |
 | 4 | Medium | Backend | AI `create_card` with `"details": null` stores the text "None" |
@@ -24,7 +24,9 @@ Simplification items follow the findings.
 
 ## Findings
 
-### 1. Moving a card in front of two or more cards fails with HTTP 500 (High, Verified)
+### 1. Moving a card in front of two or more cards fails with HTTP 500 (High, Verified, Fixed)
+
+Status: fixed. `move_card` now shifts destination rows through negative positions, and `test_move_card_to_top_of_column_with_multiple_cards` covers moves to the top of a multi-card column, both across and within columns.
 
 `backend/app/database.py:421-428` opens a gap in the destination column with:
 
@@ -102,7 +104,7 @@ Fix: create the board once at startup and on sign-in (the MVP has one user), and
 
 ### 11. Test gaps (Low)
 
-- No backend test moves a card in front of two or more cards (this hid finding 1).
+- No backend test moved a card in front of two or more cards (this hid finding 1; now covered).
 - Playwright runs `next dev` with no backend, so drag-and-drop, persistence and the AI sidebar are never tested end to end. Running e2e against the Docker container (or uvicorn serving a build) would have caught finding 1.
 - No tests cover `create_card` with `null` details or an orphaned chat message after an AI failure.
 
@@ -126,7 +128,7 @@ Fix: create the board once at startup and on sign-in (the MVP has one user), and
 
 ## Recommended order
 
-1. Fix the move collision (finding 1) and add the missing tests.
+1. Done: move collision (finding 1) fixed and tested.
 2. Bind the container to `127.0.0.1` (finding 2).
 3. Fix the AI chat issues (findings 3, 4 and 5).
 4. The rest as time allows.
