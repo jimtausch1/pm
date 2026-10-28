@@ -21,7 +21,7 @@ npm run lint
 npm run test:unit           # Vitest
 npx vitest run src/components/KanbanBoard.test.tsx   # single file
 npx vitest run -t "adds and removes a card"          # single test by name
-npm run test:e2e            # Playwright, starts its own dev server on :3101
+npm run test:e2e            # Playwright: builds, serves via FastAPI (python) on :3101 with a temp DB
 ```
 
 Backend (run from `backend/`, imports are `app.*`):
@@ -40,7 +40,8 @@ Single container: the Dockerfile builds the Next.js app as a static export (`out
 Backend:
 - `main.py` builds the app in `create_app()`. On startup, `_lifespan` loads `.env` from the repo root into `os.environ`, opens `BoardStore` at `PM_DB_PATH` (default `backend/data/pm.db`), creates the tables if needed, and seeds the `user` board. Tests set `PM_DB_PATH` to a temp file and call `create_app()`.
 - `database.py` has `BoardStore`, the only data-access layer (raw `sqlite3`). It handles users, the one board per user, columns and cards ordered by integer `position`, chat history and AI actions.
-- All board routes are keyed by `username` in the path (`/api/board/{username}/...`). Columns are addressed by a column key, and cards by an integer id.
+- All board routes are keyed by `username` in the path (`/api/board/{username}/...`); only the seeded `user` exists, and other usernames get 404. Columns are addressed by a column key, and cards by an integer id.
+- `BoardStore` raises `NotFoundError` for missing users, columns, cards and actions; an app-level exception handler turns it into a 404.
 
 AI flow (OpenRouter, model `openai/gpt-oss-120b`, called with `urllib`):
 1. `POST /api/ai/{username}/chat` sends the system contract, the current board JSON and recent chat history.

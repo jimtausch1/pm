@@ -1,56 +1,64 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { installFakeBackend } from "@/test/fakeBackend";
 
 const getFirstColumn = () => screen.getAllByTestId(/column-/i)[0];
 
 describe("KanbanBoard", () => {
-  it("renders five columns", () => {
-    render(<KanbanBoard />);
+  let fetchMock: ReturnType<typeof installFakeBackend>;
+
+  beforeEach(() => {
+    fetchMock = installFakeBackend();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders the board loaded from the backend", async () => {
+    render(<KanbanBoard username="user" />);
+    expect(await screen.findByText("Seed card")).toBeInTheDocument();
     expect(screen.getAllByTestId(/column-/i)).toHaveLength(5);
   });
 
-  it("renames a column", async () => {
-    render(<KanbanBoard />);
-    const column = getFirstColumn();
-    const input = within(column).getByLabelText("Column title");
+  it("renames a column and persists it", async () => {
+    render(<KanbanBoard username="user" />);
+    await screen.findByText("Seed card");
+    const input = within(getFirstColumn()).getByLabelText("Column title");
     await userEvent.clear(input);
     await userEvent.type(input, "New Name");
+    await userEvent.tab();
+
     expect(input).toHaveValue("New Name");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/board/user/columns/col-backlog"),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ title: "New Name" }) })
+    );
   });
 
   it("adds and removes a card", async () => {
-    render(<KanbanBoard />);
+    render(<KanbanBoard username="user" />);
+    await screen.findByText("Seed card");
     const column = getFirstColumn();
-    const addButton = within(column).getByRole("button", {
-      name: /add a card/i,
-    });
-    await userEvent.click(addButton);
-
-    const titleInput = within(column).getByPlaceholderText(/card title/i);
-    await userEvent.type(titleInput, "New card");
-    const detailsInput = within(column).getByPlaceholderText(/details/i);
-    await userEvent.type(detailsInput, "Notes");
-
+    await userEvent.click(within(column).getByRole("button", { name: /add a card/i }));
+    await userEvent.type(within(column).getByPlaceholderText(/card title/i), "New card");
+    await userEvent.type(within(column).getByPlaceholderText(/details/i), "Notes");
     await userEvent.click(within(column).getByRole("button", { name: /add card/i }));
 
-    expect(within(column).getByText("New card")).toBeInTheDocument();
+    expect(await within(column).findByText("New card")).toBeInTheDocument();
 
-    const deleteButton = within(column).getByRole("button", {
-      name: /delete new card/i,
-    });
-    await userEvent.click(deleteButton);
+    await userEvent.click(within(column).getByRole("button", { name: /delete new card/i }));
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
   });
 
-  it("shows AI sidebar with send disabled when username is not provided", () => {
-    render(<KanbanBoard />);
-    expect(screen.getByText("Sidebar Chat")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: /send/i,
-      })
-    ).toBeDisabled();
+  it("shows the AI sidebar with send disabled until a message is typed", async () => {
+    render(<KanbanBoard username="user" />);
+    await screen.findByText("Seed card");
+    const send = screen.getByRole("button", { name: /send/i });
+    expect(send).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Message"), "hello");
+    expect(send).toBeEnabled();
   });
 });

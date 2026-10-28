@@ -6,11 +6,11 @@ from typing import Annotated
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from fastapi import FastAPI, HTTPException, Path as ApiPath
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Path as ApiPath, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from .database import BoardStore
+from .database import BoardStore, NotFoundError
 
 APP_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = APP_DIR.parent
@@ -71,7 +71,7 @@ def _load_env_file() -> None:
 
 def _safe_file(base_dir: Path, relative_path: str) -> Path | None:
     candidate = (base_dir / relative_path).resolve()
-    if not str(candidate).startswith(str(base_dir.resolve())):
+    if not candidate.is_relative_to(base_dir.resolve()):
         return None
     return candidate if candidate.is_file() else None
 
@@ -435,6 +435,10 @@ async def _lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Project Management MVP", lifespan=_lifespan)
 
+    @app.exception_handler(NotFoundError)
+    def not_found(_request: Request, error: NotFoundError) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": str(error)})
+
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -515,11 +519,7 @@ def create_app() -> FastAPI:
         action_id: Annotated[int, ApiPath(ge=1)],
         payload: AiActionDecisionRequest,
     ) -> dict:
-        try:
-            action = app.state.store.get_ai_action(username, action_id)
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-
+        action = app.state.store.get_ai_action(username, action_id)
         if action["status"] != "pending":
             raise HTTPException(
                 status_code=409,
@@ -532,13 +532,11 @@ def create_app() -> FastAPI:
 
         try:
             _apply_ai_mutation(app.state.store, username, action["payload"])
-        except ValueError as error:
-            message = str(error)
+        except NotFoundError as error:
             app.state.store.set_ai_action_status(
-                username, action_id, "failed", error_message=message
+                username, action_id, "failed", error_message=str(error)
             )
-            status_code = 404 if "not found" in message.lower() else 400
-            raise HTTPException(status_code=status_code, detail=message) from error
+            raise
 
         app.state.store.set_ai_action_status(username, action_id, "applied")
         return {"status": "applied", "board": app.state.store.get_board(username)}
@@ -555,10 +553,7 @@ def create_app() -> FastAPI:
         column_key: Annotated[str, ApiPath(min_length=1, max_length=80)],
         payload: RenameColumnRequest,
     ) -> dict[str, str]:
-        try:
-            app.state.store.rename_column(username, column_key, payload.title.strip())
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        app.state.store.rename_column(username, column_key, payload.title.strip())
         return {"status": "ok"}
 
     @app.post("/api/board/{username}/columns/{column_key}/cards")
@@ -567,12 +562,9 @@ def create_app() -> FastAPI:
         column_key: Annotated[str, ApiPath(min_length=1, max_length=80)],
         payload: AddCardRequest,
     ) -> dict[str, int]:
-        try:
-            card_id = app.state.store.add_card(
-                username, column_key, payload.title.strip(), payload.details.strip()
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        card_id = app.state.store.add_card(
+            username, column_key, payload.title.strip(), payload.details.strip()
+        )
         return {"id": card_id}
 
     @app.patch("/api/board/{username}/cards/{card_id}")
@@ -583,12 +575,9 @@ def create_app() -> FastAPI:
     ) -> dict[str, str]:
         title = payload.title.strip() if payload.title is not None else None
         details = payload.details.strip() if payload.details is not None else None
-        try:
-            app.state.store.update_card(username, card_id, title=title, details=details)
-        except ValueError as error:
-            message = str(error)
-            status_code = 400 if "At least one field" in message else 404
-            raise HTTPException(status_code=status_code, detail=message) from error
+        if title is None and details is None:
+            raise HTTPException(status_code=400, detail="At least one field must be provided.")
+        app.state.store.update_card(username, card_id, title=title, details=details)
         return {"status": "ok"}
 
     @app.delete("/api/board/{username}/cards/{card_id}")
@@ -596,10 +585,7 @@ def create_app() -> FastAPI:
         username: Annotated[str, ApiPath(min_length=1, max_length=80)],
         card_id: Annotated[int, ApiPath(ge=1)],
     ) -> dict[str, str]:
-        try:
-            app.state.store.delete_card(username, card_id)
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        app.state.store.delete_card(username, card_id)
         return {"status": "ok"}
 
     @app.post("/api/board/{username}/cards/{card_id}/move")
@@ -608,15 +594,9 @@ def create_app() -> FastAPI:
         card_id: Annotated[int, ApiPath(ge=1)],
         payload: MoveCardRequest,
     ) -> dict[str, str]:
-        try:
-            app.state.store.move_card(
-                username,
-                card_id,
-                payload.targetColumnKey,
-                payload.targetPosition,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        app.state.store.move_card(
+            username, card_id, payload.targetColumnKey, payload.targetPosition
+        )
         return {"status": "ok"}
 
     @app.get("/")

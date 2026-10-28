@@ -433,3 +433,51 @@ def test_ai_create_card_with_null_details_uses_default():
     finally:
         os.environ.pop("OPENROUTER_API_KEY", None)
         os.environ.pop("PM_DB_PATH", None)
+
+
+def test_unknown_user_returns_404_without_creating_a_board():
+    from fastapi.testclient import TestClient
+
+    app = _app_with_temp_db()
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/board/nobody").status_code == 404
+            add = client.post("/api/board/nobody/columns/col-done/cards", json={"title": "x"})
+            assert add.status_code == 404
+            assert client.get("/api/board/nobody").status_code == 404
+            assert client.get("/api/ai/nobody/chat").status_code == 404
+    finally:
+        os.environ.pop("PM_DB_PATH", None)
+
+
+def test_ai_action_on_deleted_card_is_marked_failed():
+    from fastapi.testclient import TestClient
+
+    app = _app_with_temp_db()
+    os.environ["OPENROUTER_API_KEY"] = "test-key"
+    try:
+        ai_reply = {
+            "reply": "Editing it.",
+            "mutations": [{"type": "edit_card", "cardId": 1, "title": "Renamed"}],
+        }
+        with patch("app.main.urllib_request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _MockUrlOpenResponse(
+                json.dumps({"choices": [{"message": {"content": json.dumps(ai_reply)}}]}).encode(
+                    "utf-8"
+                )
+            )
+            with TestClient(app) as client:
+                action_id = client.post(
+                    "/api/ai/user/chat", json={"message": "rename card 1"}
+                ).json()["pendingActions"][0]["id"]
+                assert client.delete("/api/board/user/cards/1").status_code == 200
+
+                decide = client.post(f"/api/ai/user/actions/{action_id}", json={"approved": True})
+                assert decide.status_code == 404
+                assert decide.json()["detail"] == "Card not found."
+                assert client.get("/api/ai/user/chat").json()["pendingActions"] == []
+                again = client.post(f"/api/ai/user/actions/{action_id}", json={"approved": True})
+                assert again.status_code == 409
+    finally:
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        os.environ.pop("PM_DB_PATH", None)

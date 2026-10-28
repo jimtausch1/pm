@@ -13,12 +13,12 @@ All 11 backend tests and 10 frontend unit tests pass; ESLint and `tsc --noEmit` 
 | 3 | Medium (fixed) | Backend | A failed AI call leaves an orphan user message, and retrying duplicates it |
 | 4 | Medium (fixed) | Backend | AI `create_card` with `"details": null` stores the text "None" |
 | 5 | Medium (fixed) | Backend | AI JSON parsing is strict with no help from the API, so replies wrapped in code fences fail |
-| 6 | Low | Frontend | Seed data with fake ids is shown and editable before the real board loads |
-| 7 | Low | Backend | Every read creates a user and board for any username |
-| 8 | Low | Backend | `_safe_file` uses a string prefix check |
-| 9 | Low | Backend | HTTP status chosen by matching error text |
-| 10 | Low | Build | Local database is copied into the Docker image; test output is tracked in git |
-| 11 | Low | Tests | No test moves a card in front of multiple cards; e2e never touches the backend |
+| 6 | Low (fixed) | Frontend | Seed data with fake ids is shown and editable before the real board loads |
+| 7 | Low (fixed) | Backend | Every read creates a user and board for any username |
+| 8 | Low (fixed) | Backend | `_safe_file` uses a string prefix check |
+| 9 | Low (fixed) | Backend | HTTP status chosen by matching error text |
+| 10 | Low (fixed) | Build | Local database is copied into the Docker image; test output is tracked in git |
+| 11 | Low (fixed) | Tests | No test moves a card in front of multiple cards; e2e never touches the backend |
 
 Simplification items follow the findings.
 
@@ -86,31 +86,43 @@ Status: fixed. Chat requests now send `"response_format": {"type": "json_object"
 
 Fix: ask OpenRouter for JSON output (`"response_format": {"type": "json_object"}` in the request body). Optionally also strip a surrounding code fence before parsing.
 
-### 6. Seed data with fake ids is shown and editable before the real board loads (Low)
+### 6. Seed data with fake ids is shown and editable before the real board loads (Low, Fixed)
+
+Status: fixed. `initialData` is removed; the board starts empty and loads from the backend. `username` is now a required prop, and unit tests stub `fetch` with `src/test/fakeBackend.ts`.
 
 `KanbanBoard` starts from `initialData` (`KanbanBoard.tsx:78`), which uses ids like `card-1`. Until `GET /api/board/user` returns, or for good if it fails, the user sees made-up cards. Dragging or deleting them sends requests such as `DELETE /api/board/user/cards/card-1`, which fail validation (422). Starting from an empty board and showing the existing loading and error text would avoid this.
 
-### 7. Every read creates a user and board for any username (Low, Verified)
+### 7. Every read creates a user and board for any username (Low, Verified, Fixed)
+
+Status: fixed. Only startup seeds the `user` board; other usernames get 404 and nothing is created.
 
 Every `BoardStore` method calls `ensure_user_board(username)` first, so `GET /api/board/<anything>` inserts a user and a seeded board. Confirmed: adding a card for `anybody-at-all` returns 200. Combined with finding 2, anyone who can reach the port can create unlimited rows. Each call also opens a second connection and runs extra queries.
 
 Fix: create the board once at startup and on sign-in (the MVP has one user), and return 404 for unknown users.
 
-### 8. `_safe_file` uses a string prefix check (Low)
+### 8. `_safe_file` uses a string prefix check (Low, Fixed)
+
+Status: fixed. It now uses `Path.is_relative_to`.
 
 `backend/app/main.py:72-76` checks `str(candidate).startswith(str(base_dir.resolve()))`. A sibling directory whose name starts with the same text (for example `static/frontend-old`) would pass the check. No such directory exists today. `candidate.is_relative_to(base_dir.resolve())` is the exact check.
 
-### 9. HTTP status chosen by matching error text (Low)
+### 9. HTTP status chosen by matching error text (Low, Fixed)
+
+Status: fixed. `BoardStore` raises `NotFoundError`, mapped to 404 by one exception handler; the update route checks for an empty update itself (400). Route-level try/except blocks are gone.
 
 `decide_ai_action` maps errors to 404 if the message contains "not found", and `update_card` returns 400 if the message contains "At least one field". Renaming a message silently changes the status code. A `NotFoundError(ValueError)` subclass in `database.py` would make this explicit.
 
-### 10. Build and repo hygiene (Low)
+### 10. Build and repo hygiene (Low, Fixed)
+
+Status: fixed. `backend/data` is in `.dockerignore`; Playwright output is untracked and ignored; the unused `backend/pyproject.toml` is removed, leaving `requirements.txt` (what the Dockerfile installs) as the single source. A `uv.lock` was not added because `uv` is not installed locally.
 
 - `Dockerfile` copies `backend/` wholesale, so the local `backend/data/pm.db` (board and chat history) ends up in the image. The runtime volume hides it, but anyone with the image can read it. Add `backend/data` to `.dockerignore`.
 - `frontend/test-results/.last-run.json` is tracked in git. It is Playwright output and should be ignored.
 - Backend dependencies are declared twice (`pyproject.toml` and `requirements.txt`) with no lockfile. Pick one source, for example `pyproject.toml` with `uv.lock` and `uv sync` in the Dockerfile, which also matches the "use uv" decision in `AGENTS.md`.
 
-### 11. Test gaps (Low)
+### 11. Test gaps (Low, Fixed)
+
+Status: fixed. Playwright now builds the frontend and runs against the real FastAPI backend with a fresh database (`frontend/tests/e2e-server.mjs`), checks persistence after reload, and includes a drag in front of the top card of a multi-card column. With the old move logic restored, that e2e test fails with the original `UNIQUE constraint failed` error.
 
 - No backend test moved a card in front of two or more cards (this hid finding 1; now covered).
 - Playwright runs `next dev` with no backend, so drag-and-drop, persistence and the AI sidebar are never tested end to end. Running e2e against the Docker container (or uvicorn serving a build) would have caught finding 1.
@@ -139,4 +151,4 @@ Fix: create the board once at startup and on sign-in (the MVP has one user), and
 1. Done: move collision (finding 1) fixed and tested.
 2. Done: container bound to `127.0.0.1` (finding 2).
 3. Done: AI chat issues (findings 3, 4 and 5) fixed and tested.
-4. The rest as time allows.
+4. Done: low-severity findings 6 to 11 fixed.

@@ -4,7 +4,6 @@ import { KanbanCardPreview } from '@/components/KanbanCardPreview';
 import { KanbanColumn } from '@/components/KanbanColumn';
 import {
   createId,
-  initialData,
   moveCard,
   toBoardData,
   type BackendBoard,
@@ -24,7 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type KanbanBoardProps = {
-  username?: string;
+  username: string;
   onLogout?: () => void;
 };
 
@@ -75,16 +74,16 @@ const fetchJson = async <T,>(url: string, init?: RequestInit): Promise<T> => {
 };
 
 export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
-  const [board, setBoard] = useState<BoardData>(() => initialData);
+  const [board, setBoard] = useState<BoardData>({ columns: [], cards: {} });
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(username));
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [chatMessages, setChatMessages] = useState<AiChatMessage[]>([]);
   const [pendingActions, setPendingActions] = useState<AiPendingAction[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(Boolean(username));
+  const [isChatLoading, setIsChatLoading] = useState(true);
   const [chatError, setChatError] = useState('');
   const [actingActionId, setActingActionId] = useState<number | null>(null);
 
@@ -106,9 +105,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
   }, [board.columns, overId]);
 
   const loadBoard = useCallback(async () => {
-    if (!username) {
-      return;
-    }
     setIsLoading(true);
     try {
       const backendBoard = await fetchJson<BackendBoard>(
@@ -125,9 +121,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
   }, [username]);
 
   const loadAiContext = useCallback(async () => {
-    if (!username) {
-      return;
-    }
     setIsChatLoading(true);
     try {
       const context = await fetchJson<AiChatContextResponse>(
@@ -173,9 +166,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
     const nextColumns = moveCard(board.columns, activeId, nextOverId);
     setBoard((prev) => ({ ...prev, columns: nextColumns }));
 
-    if (!username) {
-      return;
-    }
 
     const targetColumn = nextColumns.find((column) => column.cardIds.includes(activeId));
     if (!targetColumn) {
@@ -211,9 +201,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
       ),
     }));
 
-    if (!username) {
-      return;
-    }
 
     try {
       await fetchJson<{ status: string }>(
@@ -249,9 +236,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
       ),
     }));
 
-    if (!username) {
-      return;
-    }
 
     try {
       await fetchJson<{ id: number }>(
@@ -285,9 +269,6 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
       ),
     }));
 
-    if (!username) {
-      return;
-    }
 
     try {
       await fetchJson<{ status: string }>(
@@ -306,7 +287,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
   };
 
   const handleSendChat = async () => {
-    if (!username || !chatInput.trim() || isChatLoading) {
+    if (!chatInput.trim() || isChatLoading) {
       return;
     }
 
@@ -331,7 +312,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
   };
 
   const handleDecideAction = async (actionId: number, approved: boolean) => {
-    if (!username || actingActionId !== null) {
+    if (actingActionId !== null) {
       return;
     }
     setActingActionId(actionId);
@@ -571,7 +552,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
                 onClick={() => {
                   void handleSendChat();
                 }}
-                disabled={!username || isChatLoading || !chatInput.trim()}
+                disabled={isChatLoading || !chatInput.trim()}
                 className="mt-3 w-full rounded-full bg-(--secondary-purple) px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isChatLoading ? 'Sending...' : 'Send'}

@@ -10,11 +10,12 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3101",
     trace: "retain-on-failure",
   },
+  // Builds the static export and serves it through the FastAPI backend with a fresh database.
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3101",
-    url: "http://127.0.0.1:3101",
+    command: "npm run build && node tests/e2e-server.mjs",
+    url: "http://127.0.0.1:3101/api/health",
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 300_000,
   },
   projects: [
     {

@@ -24,7 +24,7 @@ All child tables cascade on delete from their board. The API refers to columns b
 
 - On backend startup, `initialize()` creates the data directory and runs `CREATE TABLE IF NOT EXISTS` for every table, so repeated starts are safe.
 - Startup then calls `ensure_user_board("user")`.
-- Every `BoardStore` method also calls `ensure_user_board(username)` first, so any username gets a user and board created on first use.
+- Other methods do not create users: an unknown username raises `NotFoundError` (HTTP 404).
 - A new board is seeded with five columns (`col-backlog` Backlog, `col-discovery` Discovery, `col-progress` In Progress, `col-review` Review, `col-done` Done) and eight sample cards.
 
 ## Ordering

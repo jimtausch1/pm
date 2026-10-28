@@ -8,3 +8,5 @@
 frontend/.next
 frontend/test-results
 frontend/playwright-report
+backend/data
+backend/static/frontend

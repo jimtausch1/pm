@@ -34,6 +34,10 @@ DEFAULT_CARDS: list[tuple[str, str, int]] = [
 ]
 
 
+class NotFoundError(Exception):
+    pass
+
+
 class BoardStore:
     def __init__(self, db_path: Path):
         self.db_path = db_path
@@ -198,12 +202,11 @@ class BoardStore:
             (username,),
         ).fetchone()
         if not row:
-            raise ValueError("Board not found for user.")
+            raise NotFoundError("Board not found for user.")
         return int(row["user_id"]), int(row["board_id"])
 
     def get_board(self, username: str) -> dict:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
 
             columns_rows = connection.execute(
@@ -260,7 +263,6 @@ class BoardStore:
 
     def rename_column(self, username: str, column_key: str, title: str) -> None:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             result = connection.execute(
                 """
@@ -271,21 +273,20 @@ class BoardStore:
                 (title, board_id, column_key),
             )
             if result.rowcount == 0:
-                raise ValueError("Column not found.")
+                raise NotFoundError("Column not found.")
             connection.commit()
 
     def add_card(
         self, username: str, column_key: str, title: str, details: str
     ) -> int:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             column = connection.execute(
                 "SELECT id FROM columns WHERE board_id = ? AND key = ?",
                 (board_id, column_key),
             ).fetchone()
             if not column:
-                raise ValueError("Column not found.")
+                raise NotFoundError("Column not found.")
 
             column_id = int(column["id"])
             next_position_row = connection.execute(
@@ -315,14 +316,13 @@ class BoardStore:
             raise ValueError("At least one field must be provided.")
 
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             card = connection.execute(
                 "SELECT id FROM cards WHERE id = ? AND board_id = ?",
                 (card_id, board_id),
             ).fetchone()
             if not card:
-                raise ValueError("Card not found.")
+                raise NotFoundError("Card not found.")
 
             connection.execute(
                 """
@@ -339,14 +339,13 @@ class BoardStore:
 
     def delete_card(self, username: str, card_id: int) -> None:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             card = connection.execute(
                 "SELECT id, column_id, position FROM cards WHERE id = ? AND board_id = ?",
                 (card_id, board_id),
             ).fetchone()
             if not card:
-                raise ValueError("Card not found.")
+                raise NotFoundError("Card not found.")
 
             column_id = int(card["column_id"])
             removed_position = int(card["position"])
@@ -365,7 +364,6 @@ class BoardStore:
         self, username: str, card_id: int, target_column_key: str, target_position: int
     ) -> None:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
 
             card = connection.execute(
@@ -373,14 +371,14 @@ class BoardStore:
                 (card_id, board_id),
             ).fetchone()
             if not card:
-                raise ValueError("Card not found.")
+                raise NotFoundError("Card not found.")
 
             target_column = connection.execute(
                 "SELECT id FROM columns WHERE board_id = ? AND key = ?",
                 (board_id, target_column_key),
             ).fetchone()
             if not target_column:
-                raise ValueError("Target column not found.")
+                raise NotFoundError("Target column not found.")
 
             source_column_id = int(card["column_id"])
             source_position = int(card["position"])
@@ -453,7 +451,6 @@ class BoardStore:
 
     def add_chat_message(self, username: str, role: str, content: str) -> int:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             cursor = connection.execute(
                 """
@@ -467,7 +464,6 @@ class BoardStore:
 
     def get_recent_chat_messages(self, username: str, limit: int = 20) -> list[dict]:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             rows = connection.execute(
                 """
@@ -499,7 +495,6 @@ class BoardStore:
         assistant_message_id: int,
     ) -> int:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             cursor = connection.execute(
                 """
@@ -519,7 +514,6 @@ class BoardStore:
 
     def get_ai_action(self, username: str, action_id: int) -> dict:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             row = connection.execute(
                 """
@@ -538,7 +532,7 @@ class BoardStore:
                 (action_id, board_id),
             ).fetchone()
             if not row:
-                raise ValueError("AI action not found.")
+                raise NotFoundError("AI action not found.")
 
             return {
                 "id": int(row["id"]),
@@ -559,7 +553,6 @@ class BoardStore:
 
     def list_pending_ai_actions(self, username: str) -> list[dict]:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             rows = connection.execute(
                 """
@@ -585,7 +578,6 @@ class BoardStore:
         self, username: str, action_id: int, status: str, error_message: str | None = None
     ) -> None:
         with self._connect() as connection:
-            self.ensure_user_board(username)
             _, board_id = self._board_for_user(connection, username)
             result = connection.execute(
                 """
@@ -599,5 +591,5 @@ class BoardStore:
                 (status, error_message, action_id, board_id),
             )
             if result.rowcount == 0:
-                raise ValueError("AI action not found.")
+                raise NotFoundError("AI action not found.")
             connection.commit()
