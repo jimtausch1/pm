@@ -375,7 +375,9 @@ def test_ai_chat_sends_board_and_recent_history():
         assert any(content.startswith("Current board JSON:") for content in contents)
         assert "first prompt" in contents
         assert "reply-1" in contents
-        assert "second prompt" in contents
+        assert contents.count("second prompt") == 1
+        assert second_messages[-1] == {"role": "user", "content": "second prompt"}
+        assert captured_payloads[1]["response_format"] == {"type": "json_object"}
     finally:
         os.environ.pop("OPENROUTER_API_KEY", None)
         os.environ.pop("PM_DB_PATH", None)
@@ -396,6 +398,38 @@ def test_ai_chat_rejects_malformed_structured_response():
                 response = client.post("/api/ai/user/chat", json={"message": "hello"})
                 assert response.status_code == 502
                 assert "required JSON contract" in response.json()["detail"]
+                assert client.get("/api/ai/user/chat").json()["messages"] == []
+    finally:
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        os.environ.pop("PM_DB_PATH", None)
+
+
+def test_ai_create_card_with_null_details_uses_default():
+    from fastapi.testclient import TestClient
+
+    app = _app_with_temp_db()
+    os.environ["OPENROUTER_API_KEY"] = "test-key"
+    try:
+        ai_reply = {
+            "reply": "Adding it.",
+            "mutations": [
+                {"type": "create_card", "columnKey": "col-backlog", "title": "Null details", "details": None}
+            ],
+        }
+        with patch("app.main.urllib_request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = _MockUrlOpenResponse(
+                json.dumps({"choices": [{"message": {"content": json.dumps(ai_reply)}}]}).encode(
+                    "utf-8"
+                )
+            )
+            with TestClient(app) as client:
+                body = client.post("/api/ai/user/chat", json={"message": "add a card"}).json()
+                action_id = body["pendingActions"][0]["id"]
+                board = client.post(
+                    f"/api/ai/user/actions/{action_id}", json={"approved": True}
+                ).json()["board"]
+                card = next(c for c in board["cards"].values() if c["title"] == "Null details")
+                assert card["details"] == "No details yet."
     finally:
         os.environ.pop("OPENROUTER_API_KEY", None)
         os.environ.pop("PM_DB_PATH", None)

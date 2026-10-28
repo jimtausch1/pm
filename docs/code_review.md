@@ -10,9 +10,9 @@ All 11 backend tests and 10 frontend unit tests pass; ESLint and `tsc --noEmit` 
 |---|----------|------|---------|
 | 1 | High (fixed) | Backend | Moving a card in front of two or more cards fails with HTTP 500 |
 | 2 | Medium | Security | API has no authentication and the container listens on all network interfaces |
-| 3 | Medium | Backend | A failed AI call leaves an orphan user message, and retrying duplicates it |
-| 4 | Medium | Backend | AI `create_card` with `"details": null` stores the text "None" |
-| 5 | Medium | Backend | AI JSON parsing is strict with no help from the API, so replies wrapped in code fences fail |
+| 3 | Medium (fixed) | Backend | A failed AI call leaves an orphan user message, and retrying duplicates it |
+| 4 | Medium (fixed) | Backend | AI `create_card` with `"details": null` stores the text "None" |
+| 5 | Medium (fixed) | Backend | AI JSON parsing is strict with no help from the API, so replies wrapped in code fences fail |
 | 6 | Low | Frontend | Seed data with fake ids is shown and editable before the real board loads |
 | 7 | Low | Backend | Every read creates a user and board for any username |
 | 8 | Low | Backend | `_safe_file` uses a string prefix check |
@@ -60,19 +60,25 @@ Login only exists in the browser (`frontend/src/app/page.tsx`, a `localStorage` 
 
 The hardcoded login is an accepted MVP limit, but local-only is a stated requirement. Fix: publish with `-p 127.0.0.1:8000:8000` in all three start scripts.
 
-### 3. Failed AI call leaves an orphan user message, and retrying duplicates it (Medium)
+### 3. Failed AI call leaves an orphan user message, and retrying duplicates it (Medium, Fixed)
+
+Status: fixed. The user message is stored only after the AI reply parses; the current message is appended to the prompt in memory.
 
 `send_ai_chat_message` (`backend/app/main.py`, `POST /api/ai/{username}/chat`) stores the user message before calling OpenRouter. If the call fails, or the reply breaks the contract (502), the message stays in history with no assistant reply. The frontend then puts the text back in the input (`KanbanBoard.tsx:325`) without reloading the chat context. When the user resends, the history holds the same message twice, and every later prompt carries both copies.
 
 Fix: store the user message only after the AI reply has been parsed, and store both messages together.
 
-### 4. AI `create_card` with `"details": null` stores the text "None" (Medium)
+### 4. AI `create_card` with `"details": null` stores the text "None" (Medium, Fixed)
+
+Status: fixed. Non-string `details` is treated as empty, so the "No details yet." default applies.
 
 `_normalize_mutation` (`backend/app/main.py:305`) uses `str(raw_mutation.get("details", "")).strip()`. `get` returns `None` when the key is present with a `null` value, and `str(None)` is `"None"`. Models often send `null` for optional fields. The card is then saved with details "None", not the "No details yet." default.
 
 Fix: treat a non-string `details` as `""`, as `edit_card` already does. AI-supplied titles and details also skip the 200 and 2000 character limits that the board routes enforce.
 
-### 5. AI JSON parsing is strict with no help from the API (Medium)
+### 5. AI JSON parsing is strict with no help from the API (Medium, Fixed)
+
+Status: fixed. Chat requests now send `"response_format": {"type": "json_object"}`.
 
 `_parse_ai_response` runs `json.loads` on the raw reply, and any deviation returns 502. The only protection is a sentence in the system prompt ("Do not include markdown fences..."). Models do wrap JSON in fences from time to time, and the user then sees a generic error.
 
@@ -130,5 +136,5 @@ Fix: create the board once at startup and on sign-in (the MVP has one user), and
 
 1. Done: move collision (finding 1) fixed and tested.
 2. Bind the container to `127.0.0.1` (finding 2).
-3. Fix the AI chat issues (findings 3, 4 and 5).
+3. Done: AI chat issues (findings 3, 4 and 5) fixed and tested.
 4. The rest as time allows.

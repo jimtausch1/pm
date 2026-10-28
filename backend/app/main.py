@@ -187,7 +187,11 @@ def _openrouter_connectivity_check() -> dict[str, str]:
 
 
 def _openrouter_chat_completion(messages: list[dict[str, str]]) -> str:
-    request_body = {"model": OPENROUTER_MODEL, "messages": messages}
+    request_body = {
+        "model": OPENROUTER_MODEL,
+        "messages": messages,
+        "response_format": {"type": "json_object"},
+    }
     request = urllib_request.Request(
         OPENROUTER_CHAT_COMPLETIONS_URL,
         data=json.dumps(request_body).encode("utf-8"),
@@ -296,13 +300,14 @@ def _normalize_mutation(raw_mutation: object) -> dict:
         )
 
     if mutation_type == "create_card":
+        details = raw_mutation.get("details")
         return {
             "type": mutation_type,
             "columnKey": _normalize_required_string(
                 raw_mutation.get("columnKey"), "columnKey"
             ),
             "title": _normalize_required_string(raw_mutation.get("title"), "title"),
-            "details": str(raw_mutation.get("details", "")).strip(),
+            "details": details.strip() if isinstance(details, str) else "",
         }
 
     if mutation_type == "edit_card":
@@ -471,13 +476,15 @@ def create_app() -> FastAPI:
         if not user_message:
             raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-        app.state.store.add_chat_message(username, "user", user_message)
         board = app.state.store.get_board(username)
-        history = app.state.store.get_recent_chat_messages(username, limit=20)
+        history = app.state.store.get_recent_chat_messages(username, limit=19)
         ai_messages = _build_ai_messages(board, history)
+        ai_messages.append({"role": "user", "content": user_message})
         ai_raw_response = _openrouter_chat_completion(ai_messages)
         ai_reply, mutations = _parse_ai_response(ai_raw_response)
 
+        # Store the user message only once the AI reply is valid, so failures leave no orphans.
+        app.state.store.add_chat_message(username, "user", user_message)
         assistant_message_id = app.state.store.add_chat_message(
             username, "assistant", ai_reply
         )
