@@ -1,10 +1,20 @@
 # Script catalog
 
-This folder contains local run scripts for Dockerized development:
+Local run scripts for the Dockerized app, one pair per shell:
 
-- [start.ps1](C:/Repos/pm/scripts/start.ps1), [stop.ps1](C:/Repos/pm/scripts/stop.ps1): PowerShell (Windows).
-- [start.bat](C:/Repos/pm/scripts/start.bat), [stop.bat](C:/Repos/pm/scripts/stop.bat): Command Prompt (Windows).
-- [start.sh](C:/Repos/pm/scripts/start.sh), [stop.sh](C:/Repos/pm/scripts/stop.sh): shell scripts (macOS/Linux).
+- [start.sh](start.sh), [stop.sh](stop.sh): macOS/Linux
+- [start.ps1](start.ps1), [stop.ps1](stop.ps1): Windows PowerShell
+- [start.bat](start.bat), [stop.bat](stop.bat): Windows Command Prompt
 
-All start scripts build image `pm-mvp` and run container `pm-mvp` on port `8000`.
-They mount [backend/data/](C:/Repos/pm/backend/data/) into `/app/backend/data` so SQLite data persists across container restarts.
+## Start
+
+Each start script:
+1. Creates `backend/data/` if missing.
+2. Builds image `pm-mvp` from the repo root (rebuilds the frontend and backend every time).
+3. Runs container `pm-mvp` detached with `--rm` on port `8000`, mounting `backend/data/` at `/app/backend/data` so the SQLite database persists, and passing the root `.env` via `--env-file` (the file must exist).
+
+The app is then at http://localhost:8000. Starting while the container is already running fails because the name is taken; run the stop script first.
+
+## Stop
+
+Each stop script runs `docker stop pm-mvp` if the container is running and otherwise reports that it is not running. Because the container was started with `--rm`, stopping also removes it; the image and `backend/data/` remain.
