@@ -9,7 +9,7 @@ All 11 backend tests and 10 frontend unit tests pass; ESLint and `tsc --noEmit` 
 | # | Severity | Area | Finding |
 |---|----------|------|---------|
 | 1 | High (fixed) | Backend | Moving a card in front of two or more cards fails with HTTP 500 |
-| 2 | Medium | Security | API has no authentication and the container listens on all network interfaces |
+| 2 | Medium (fixed) | Security | API has no authentication and the container listens on all network interfaces |
 | 3 | Medium (fixed) | Backend | A failed AI call leaves an orphan user message, and retrying duplicates it |
 | 4 | Medium (fixed) | Backend | AI `create_card` with `"details": null` stores the text "None" |
 | 5 | Medium (fixed) | Backend | AI JSON parsing is strict with no help from the API, so replies wrapped in code fences fail |
@@ -54,7 +54,9 @@ UPDATE cards SET position = -position - 1   WHERE column_id = ? AND position < -
 
 The second statement turns `-(p + 2)` into `p + 1`, and skipping `-1` leaves the parked card alone. The `-1` shift in the source column already works because it runs in ascending order into freed slots. Add a test that moves a card to position 0 of a column with at least two cards, both within and across columns.
 
-### 2. No API authentication, and the container listens on all network interfaces (Medium)
+### 2. No API authentication, and the container listens on all network interfaces (Medium, Fixed)
+
+Status: fixed. All three start scripts publish with `-p 127.0.0.1:8000:8000`. The API itself is still unauthenticated, which is the accepted MVP limit.
 
 Login only exists in the browser (`frontend/src/app/page.tsx`, a `localStorage` flag). Every `/api` route trusts the `{username}` in the path. The start scripts publish with `-p 8000:8000` (`scripts/start.sh:14`, `start.ps1:17`, `start.bat:19`), which binds to all network interfaces. Anyone on the same network can read and change the board and call `/api/ai/*`, which spends the `OPENROUTER_API_KEY` credits.
 
@@ -135,6 +137,6 @@ Fix: create the board once at startup and on sign-in (the MVP has one user), and
 ## Recommended order
 
 1. Done: move collision (finding 1) fixed and tested.
-2. Bind the container to `127.0.0.1` (finding 2).
+2. Done: container bound to `127.0.0.1` (finding 2).
 3. Done: AI chat issues (findings 3, 4 and 5) fixed and tested.
 4. The rest as time allows.

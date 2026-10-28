@@ -14,7 +14,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Starting container pm-mvp on http://localhost:8000 ..."
-docker run --rm -d --name pm-mvp -p 8000:8000 -v "${dataDir}:/app/backend/data" --env-file "$repoRoot\.env" pm-mvp
+docker run --rm -d --name pm-mvp -p 127.0.0.1:8000:8000 -v "${dataDir}:/app/backend/data" --env-file "$repoRoot\.env" pm-mvp
 
 if ($LASTEXITCODE -ne 0) {
   throw "Docker run failed."

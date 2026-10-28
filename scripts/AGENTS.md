@@ -11,7 +11,7 @@ Local run scripts for the Dockerized app, one pair per shell:
 Each start script:
 1. Creates `backend/data/` if missing.
 2. Builds image `pm-mvp` from the repo root (rebuilds the frontend and backend every time).
-3. Runs container `pm-mvp` detached with `--rm` on port `8000`, mounting `backend/data/` at `/app/backend/data` so the SQLite database persists, and passing the root `.env` via `--env-file` (the file must exist).
+3. Runs container `pm-mvp` detached with `--rm`, publishing port `8000` on `127.0.0.1` only (not reachable from other machines), mounting `backend/data/` at `/app/backend/data` so the SQLite database persists, and passing the root `.env` via `--env-file` (the file must exist).
 
 The app is then at http://localhost:8000. Starting while the container is already running fails because the name is taken; run the stop script first.
 
