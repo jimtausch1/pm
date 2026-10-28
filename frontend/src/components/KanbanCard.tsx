@@ -32,17 +32,17 @@ export const KanbanCard = ({ card, onDelete }: KanbanCardProps) => {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h4 className="font-display text-base font-semibold text-[var(--navy-dark)]">
+          <h4 className="font-display text-base font-semibold text-foreground">
             {card.title}
           </h4>
-          <p className="mt-2 text-sm leading-6 text-[var(--gray-text)]">
+          <p className="mt-2 text-sm leading-6 text-(--gray-text)">
             {card.details}
           </p>
         </div>
         <button
           type="button"
           onClick={() => onDelete(card.id)}
-          className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--stroke)] hover:text-[var(--navy-dark)]"
+          className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-(--gray-text) transition hover:border-(--stroke) hover:text-foreground"
           aria-label={`Delete ${card.title}`}
         >
           Remove

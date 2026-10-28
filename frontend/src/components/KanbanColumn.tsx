@@ -40,16 +40,16 @@ export const KanbanColumn = ({
     <section
       ref={setNodeRef}
       className={clsx(
-        "flex min-h-[520px] flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] transition",
-        isDropTarget && "ring-2 ring-[var(--accent-yellow)]"
+        "flex min-h-130 flex-col rounded-3xl border border-(--stroke) bg-(--surface-strong) p-4 shadow-(--shadow) transition",
+        isDropTarget && "ring-2 ring-(--accent-yellow)"
       )}
       data-testid={`column-${column.id}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="w-full">
           <div className="flex items-center gap-3">
-            <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+            <div className="h-2 w-10 rounded-full bg-(--accent-yellow)" />
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-(--gray-text)">
               {cards.length} cards
             </span>
           </div>
@@ -64,7 +64,7 @@ export const KanbanColumn = ({
               }
               void onRename(column.id, nextTitle);
             }}
-            className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
+            className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-foreground outline-none"
             aria-label="Column title"
           />
         </div>
@@ -80,7 +80,7 @@ export const KanbanColumn = ({
           ))}
         </SortableContext>
         {cards.length === 0 && (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--stroke)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-(--stroke) px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-(--gray-text)">
             Drop a card here
           </div>
         )}
