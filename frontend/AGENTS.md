@@ -1,8 +1,6 @@
-# Frontend baseline: current implementation
+# Frontend scope
 
-## Purpose
-
-This frontend is a standalone NextJS Kanban demo application. It currently runs without a backend and keeps board state in local React state only.
+NextJS frontend for the Project Management MVP. It is built as a static export (`output: "export"`) and served by the FastAPI backend at `/`; all data comes from the backend `/api` routes via same-origin relative URLs.
 
 ## Stack and tooling
 
@@ -12,46 +10,30 @@ This frontend is a standalone NextJS Kanban demo application. It currently runs 
 - Unit tests with Vitest + Testing Library
 - End-to-end tests with Playwright
 
-Reference files:
-- [package.json](C:/Repos/pm/frontend/package.json)
-- [src/app/page.tsx](C:/Repos/pm/frontend/src/app/page.tsx)
-- [src/components/KanbanBoard.tsx](C:/Repos/pm/frontend/src/components/KanbanBoard.tsx)
-- [src/lib/kanban.ts](C:/Repos/pm/frontend/src/lib/kanban.ts)
+## Structure
 
-## Functional baseline
+- [src/app/page.tsx](src/app/page.tsx): sign-in gate. Credentials are hardcoded (`user` / `password`); the signed-in flag is stored in `localStorage` and read with `useSyncExternalStore`. Once signed in it renders `KanbanBoard` with `username="user"`.
+- [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx): board and AI sidebar. Owns board state, chat state, all API calls (`fetchJson`) and the dnd-kit handlers.
+- [src/components/KanbanColumn.tsx](src/components/KanbanColumn.tsx), [KanbanCard.tsx](src/components/KanbanCard.tsx), [KanbanCardPreview.tsx](src/components/KanbanCardPreview.tsx), [NewCardForm.tsx](src/components/NewCardForm.tsx): presentational pieces; columns hold the inline title editor.
+- [src/lib/kanban.ts](src/lib/kanban.ts): `Card`, `Column`, `BoardData` types, `initialData` (five seed columns), `moveCard` (same-column reorder and cross-column moves), `createId`, and `toBoardData`, which maps the backend board (column `key`, numeric card ids) to `BoardData` (column `id`, string card ids).
 
-### Board rendering
-- [KanbanBoard](C:/Repos/pm/frontend/src/components/KanbanBoard.tsx) renders five columns from [initialData](C:/Repos/pm/frontend/src/lib/kanban.ts:16).
-- The page entrypoint [Home](C:/Repos/pm/frontend/src/app/page.tsx:3) renders only this board component.
+## Behavior
 
-### Card interactions
-- Drag-and-drop uses `DndContext` and sortable cards.
-- Columns can be renamed inline.
-- Cards can be created with title/details.
-- Cards can be deleted.
-- All interactions mutate in-memory state only; nothing persists across reload.
+### Board
+- Loads `GET /api/board/{username}` on mount; `initialData` is shown until it arrives (or if it fails).
+- Rename column, add card, delete card and drag-and-drop move update local state optimistically, call the matching backend route, then reload the board whether the request succeeds or fails.
+- Cards cannot be edited directly in the UI; edits happen through the AI sidebar.
 
-### Data model
-- [kanban.ts](C:/Repos/pm/frontend/src/lib/kanban.ts) defines `Card`, `Column`, and `BoardData`.
-- `moveCard` handles same-column reordering and cross-column moves.
-- `createId` generates client-side IDs for new cards.
+### AI sidebar
+- Loads chat history and pending actions from `GET /api/ai/{username}/chat`.
+- Sending a message posts to the same route, then reloads the chat context.
+- AI-proposed mutations (`create_card`, `edit_card`, `move_card`) appear as pending actions. Approving or rejecting one posts to `/api/ai/{username}/actions/{actionId}`; an approval replaces the board with the board returned by the server.
+- Sending is disabled when no `username` is provided.
 
-## Existing tests
+## Tests
 
-- Unit tests:
-  - [KanbanBoard.test.tsx](C:/Repos/pm/frontend/src/components/KanbanBoard.test.tsx)
-  - [kanban.test.ts](C:/Repos/pm/frontend/src/lib/kanban.test.ts)
-- E2E tests:
-  - [kanban.spec.ts](C:/Repos/pm/frontend/tests/kanban.spec.ts)
-
-Current tests verify:
-- Five-column rendering
-- Column rename
-- Card add/remove
-- Basic drag-and-drop between columns
-
-## Integration assumptions for backend migration
-
-- Current UI behavior should remain functionally equivalent during backend integration.
-- New login, persistence, and AI features should layer onto existing components with minimal disruption.
-- Tests should be extended, not replaced, so baseline interactions continue to be validated.
+- Unit (`npm run test:unit`):
+  - [page.test.tsx](src/app/page.test.tsx): sign-in gate, invalid credentials, logout
+  - [KanbanBoard.test.tsx](src/components/KanbanBoard.test.tsx): five columns, rename, add/remove card, sidebar without username
+  - [kanban.test.ts](src/lib/kanban.test.ts): `moveCard`
+- E2E (`npm run test:e2e`): [kanban.spec.ts](tests/kanban.spec.ts) covers board load, add card, drag between columns, drop-target highlight and logout. Playwright starts `next dev` on port 3101 with no backend, so these tests exercise the UI against `initialData`.

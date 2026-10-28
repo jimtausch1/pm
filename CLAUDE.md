@@ -2,8 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Project requirements, coding standards and the color scheme are in `AGENTS.md` (root); follow it. Progress is tracked in `docs/PLAN.md`, and the schema is described in `docs/DATABASE.md` and `docs/database-schema.json`. Note that `frontend/AGENTS.md` describes the original frontend-only demo and is out of date.
-
+Project requirements, coding standards and the color scheme are in `AGENTS.md` (root); follow it. Progress is tracked in `docs/PLAN.md`, and the schema is described in `docs/DATABASE.md` and `docs/database-schema.json`.
 ## Commands
 
 Run the full app (Docker, http://localhost:8000; SQLite data persists in `backend/data/`):
