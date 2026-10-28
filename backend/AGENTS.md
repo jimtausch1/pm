@@ -1,24 +1,42 @@
 # Backend scope
 
-This folder contains the FastAPI backend for the Project Management MVP.
+FastAPI backend for the Project Management MVP. It serves the static NextJS export at `/` and the JSON API under `/api`.
 
-Current phase-2 baseline includes:
-- [app/main.py](C:/Repos/pm/backend/app/main.py): FastAPI app with:
-  - `GET /` serving static frontend output
-  - `GET /api/health`
-  - `GET /api/hello`
-  - `GET /api/ai/connectivity-check`
-  - `GET /api/ai/{username}/chat`
-  - `POST /api/ai/{username}/chat`
-  - `POST /api/ai/{username}/actions/{action_id}`
+## Structure
+
+- [app/main.py](app/main.py): `create_app()` with all routes, OpenRouter calls (`urllib`, model `openai/gpt-oss-120b`), AI response validation and mutation handling. The module-level `app` is what uvicorn runs.
+- [app/database.py](app/database.py): `BoardStore`, the only data-access layer (raw `sqlite3`, foreign keys on). Covers users, one board per user, columns, cards, chat messages and AI actions.
+- [static/index.html](static/index.html): placeholder page shown when no frontend build is present. The Docker build copies the frontend export to `static/frontend/`.
+- [tests/test_board_api.py](tests/test_board_api.py): API tests using `TestClient` with a temp database; OpenRouter is mocked by patching `urlopen`.
+
+## Startup
+
+The `_lifespan` handler loads `.env` from the repo root into `os.environ` (existing variables win), opens the database at `PM_DB_PATH` (default `data/pm.db`), creates tables if missing, and seeds user `user` with five columns (`col-backlog`, `col-discovery`, `col-progress`, `col-review`, `col-done`) and eight sample cards. Initialization is idempotent.
+
+## Routes
+
+- `GET /api/health`, `GET /api/hello`
+- `GET /api/ai/connectivity-check`: one test prompt to OpenRouter; requires `OPENROUTER_API_KEY`.
+- Board (columns addressed by key, cards by integer id):
   - `GET /api/board/{username}`
-  - `PATCH /api/board/{username}/columns/{column_key}`
-  - `POST /api/board/{username}/columns/{column_key}/cards`
-  - `PATCH /api/board/{username}/cards/{card_id}`
+  - `PATCH /api/board/{username}/columns/{column_key}`: rename
+  - `POST /api/board/{username}/columns/{column_key}/cards`: add card
+  - `PATCH /api/board/{username}/cards/{card_id}`: edit title/details
   - `DELETE /api/board/{username}/cards/{card_id}`
-  - `POST /api/board/{username}/cards/{card_id}/move`
-- [app/database.py](C:/Repos/pm/backend/app/database.py): SQLite initialization, board persistence, chat history, and pending AI mutation actions.
-- [tests/test_board_api.py](C:/Repos/pm/backend/tests/test_board_api.py): backend unit tests for board operations, OpenRouter integration behavior, and AI mutation confirmation flow.
-- [pyproject.toml](C:/Repos/pm/backend/pyproject.toml): backend dependency definition.
+  - `POST /api/board/{username}/cards/{card_id}/move`: `targetColumnKey`, zero-based `targetPosition`
+- AI chat:
+  - `GET /api/ai/{username}/chat`: last 50 messages plus pending actions
+  - `POST /api/ai/{username}/chat`: see AI flow
+  - `POST /api/ai/{username}/actions/{action_id}`: `{"approved": bool}`
+- `GET /` and `GET /{file_path:path}`: static files from `static/frontend/`, then `static/`, falling back to the frontend `index.html`.
 
-Next phase adds the frontend sidebar experience on top of these AI routes.
+## AI flow
+
+1. `POST /api/ai/{username}/chat` stores the user message, then sends a system contract, the current board JSON and the last 20 messages to OpenRouter.
+2. The model must reply with strict JSON `{"reply": str, "mutations": [...]}`. Mutations are `create_card` (`columnKey`, `title`, `details?`), `edit_card` (`cardId`, `title?`, `details?`) and `move_card` (`cardId`, `targetColumnKey`, `targetPosition`). A response that breaks the contract returns 502.
+3. The reply is stored as an assistant message, and each mutation becomes a pending `ai_actions` row. Nothing is applied yet.
+4. The action decision route marks an action `rejected`, or applies it and marks it `applied` (returning the updated board). If applying fails, the action is marked `failed` and the route returns 404 or 400. Deciding an action that is no longer pending returns 409.
+
+## Tests
+
+Run from `backend/`: `python -m pytest`. Coverage: board seeding, rename, add/edit/delete card, moves across and within columns, connectivity check (success, missing key, invalid key), per-action confirmation, the board and history sent to the AI, and rejection of malformed AI responses.
