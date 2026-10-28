@@ -15,7 +15,7 @@ The `_lifespan` handler loads `.env` from the repo root into `os.environ` (exist
 
 ## Routes
 
-- `GET /api/health`, `GET /api/hello`
+- `GET /api/health`
 - `GET /api/ai/connectivity-check`: one test prompt to OpenRouter; requires `OPENROUTER_API_KEY`.
 - Board (columns addressed by key, cards by integer id):
   - `GET /api/board/{username}`

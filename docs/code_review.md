@@ -130,6 +130,8 @@ Status: fixed. Playwright now builds the frontend and runs against the real Fast
 
 ## Simplification
 
+Status: all applied. The OpenRouter call is one function (`json_output` adds `response_format` for chat only, since JSON mode expects the prompt to mention JSON); `/api/hello` is removed and the placeholder page calls `/api/health`; `requiresConfirmation` is gone; `fetchJson` lives in `src/lib/api.ts` without the dead branch; the `cardsById` memo is gone; the sidebar is `AiSidebar.tsx`; `BoardStore._connect` is a context manager that commits or rolls back and then closes.
+
 - `backend/app/main.py`: `_openrouter_connectivity_check` and `_openrouter_chat_completion` duplicate the request, error handling and JSON decoding code. The check can call `_openrouter_chat_completion([{"role": "user", "content": "2+2"}])`.
 - `backend/app/main.py`: `GET /api/hello` is leftover scaffolding.
 - `backend/app/main.py`: the `requiresConfirmation` field on pending actions is always `true` and the frontend never reads it.

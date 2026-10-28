@@ -206,6 +206,8 @@ def test_ai_connectivity_check_success():
                 payload = response.json()
                 assert payload["model"] == "openai/gpt-oss-120b"
                 assert payload["reply"] == "2+2 equals 4"
+                sent = json.loads(mock_urlopen.call_args.args[0].data.decode("utf-8"))
+                assert "response_format" not in sent
     finally:
         os.environ.pop("OPENROUTER_API_KEY", None)
         os.environ.pop("PM_DB_PATH", None)

@@ -13,7 +13,9 @@ NextJS frontend for the Project Management MVP. It is built as a static export (
 ## Structure
 
 - [src/app/page.tsx](src/app/page.tsx): sign-in gate. Credentials are hardcoded (`user` / `password`); the signed-in flag is stored in `localStorage` and read with `useSyncExternalStore`. Once signed in it renders `KanbanBoard` with `username="user"`.
-- [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx): board and AI sidebar. Owns board state, chat state, all API calls (`fetchJson`) and the dnd-kit handlers.
+- [src/components/KanbanBoard.tsx](src/components/KanbanBoard.tsx): the board. Owns board state, the board API calls and the dnd-kit handlers, and renders `AiSidebar`.
+- [src/components/AiSidebar.tsx](src/components/AiSidebar.tsx): chat, pending actions and approve/reject. Calls `onBoardChange` with the board returned by an approval, or with nothing to make the board reload.
+- [src/lib/api.ts](src/lib/api.ts): `fetchJson`, shared by both components.
 - [src/components/KanbanColumn.tsx](src/components/KanbanColumn.tsx), [KanbanCard.tsx](src/components/KanbanCard.tsx), [KanbanCardPreview.tsx](src/components/KanbanCardPreview.tsx), [NewCardForm.tsx](src/components/NewCardForm.tsx): presentational pieces; columns hold the inline title editor.
 - [src/lib/kanban.ts](src/lib/kanban.ts): `Card`, `Column`, `BoardData` types, `moveCard` (same-column reorder and cross-column moves), `createId`, and `toBoardData`, which maps the backend board (column `key`, numeric card ids) to `BoardData` (column `id`, string card ids).
 

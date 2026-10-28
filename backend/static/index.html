@@ -39,7 +39,7 @@
   <body>
     <h1>Backend scaffolding is running</h1>
     <p>This is a temporary static page served by FastAPI.</p>
-    <button id="check-api" type="button">Call /api/hello</button>
+    <button id="check-api" type="button">Call /api/health</button>
     <pre id="result">No API call yet.</pre>
 
     <script>
@@ -49,7 +49,7 @@
       button.addEventListener("click", async () => {
         result.textContent = "Loading...";
         try {
-          const response = await fetch("/api/hello");
+          const response = await fetch("/api/health");
           const payload = await response.json();
           result.textContent = JSON.stringify(payload, null, 2);
         } catch (error) {

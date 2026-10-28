@@ -50,6 +50,6 @@ AI flow (OpenRouter, model `openai/gpt-oss-120b`, called with `urllib`):
 
 Frontend:
 - `src/app/page.tsx` has the hardcoded login (`user`/`password`). The auth flag is kept in `localStorage` and read with `useSyncExternalStore`.
-- `src/components/KanbanBoard.tsx` holds the board and AI sidebar state, all API calls (`fetchJson`) and the dnd-kit drag handling. Board edits update local state optimistically, then reload the board from the backend whether the request succeeds or fails; confirming an AI action uses the board returned by the server.
+- `src/components/KanbanBoard.tsx` holds the board state, the board API calls and the dnd-kit drag handling. `src/components/AiSidebar.tsx` holds the chat state and calls, and reports approved changes back through `onBoardChange`. Both use `fetchJson` from `src/lib/api.ts`. Board edits update local state optimistically, then reload the board from the backend whether the request succeeds or fails; confirming an AI action uses the board returned by the server.
 - `src/lib/kanban.ts` has the client-side types, `moveCard` and `toBoardData`, which converts the backend board shape into the UI's `BoardData`.
 - The colors are CSS variables in `src/app/globals.css`, used through Tailwind v4 shorthand (`text-(--gray-text)`). `--navy-dark` and `--surface` are mapped to `text-foreground` and `bg-background`.

@@ -144,54 +144,10 @@ def _extract_openrouter_reply(payload: dict) -> str:
     return content.strip()
 
 
-def _openrouter_connectivity_check() -> dict[str, str]:
-    request_body = {
-        "model": OPENROUTER_MODEL,
-        "messages": [{"role": "user", "content": "2+2"}],
-    }
-    request = urllib_request.Request(
-        OPENROUTER_CHAT_COMPLETIONS_URL,
-        data=json.dumps(request_body).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {_openrouter_api_key()}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib_request.urlopen(request, timeout=20) as response:
-            raw_response = response.read()
-    except urllib_error.HTTPError as error:
-        error_body = error.read().decode("utf-8", errors="replace")
-        message = _extract_openrouter_error_message(error_body)
-        raise HTTPException(
-            status_code=502,
-            detail=f"OpenRouter request failed ({error.code}): {message}",
-        ) from error
-    except urllib_error.URLError as error:
-        raise HTTPException(
-            status_code=502,
-            detail=f"OpenRouter request failed: {error.reason}",
-        ) from error
-
-    try:
-        payload = json.loads(raw_response.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise HTTPException(
-            status_code=502,
-            detail="OpenRouter response was not valid JSON.",
-        ) from error
-
-    return {"model": OPENROUTER_MODEL, "reply": _extract_openrouter_reply(payload)}
-
-
-def _openrouter_chat_completion(messages: list[dict[str, str]]) -> str:
-    request_body = {
-        "model": OPENROUTER_MODEL,
-        "messages": messages,
-        "response_format": {"type": "json_object"},
-    }
+def _openrouter_chat_completion(messages: list[dict[str, str]], json_output: bool = False) -> str:
+    request_body: dict = {"model": OPENROUTER_MODEL, "messages": messages}
+    if json_output:
+        request_body["response_format"] = {"type": "json_object"}
     request = urllib_request.Request(
         OPENROUTER_CHAT_COMPLETIONS_URL,
         data=json.dumps(request_body).encode("utf-8"),
@@ -443,13 +399,10 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/api/hello")
-    def hello() -> dict[str, str]:
-        return {"message": "Hello from FastAPI"}
-
     @app.get("/api/ai/connectivity-check")
     def ai_connectivity_check() -> dict[str, str]:
-        return _openrouter_connectivity_check()
+        reply = _openrouter_chat_completion([{"role": "user", "content": "2+2"}])
+        return {"model": OPENROUTER_MODEL, "reply": reply}
 
     @app.get("/api/ai/{username}/chat")
     def get_ai_chat_context(
@@ -484,7 +437,7 @@ def create_app() -> FastAPI:
         history = app.state.store.get_recent_chat_messages(username, limit=19)
         ai_messages = _build_ai_messages(board, history)
         ai_messages.append({"role": "user", "content": user_message})
-        ai_raw_response = _openrouter_chat_completion(ai_messages)
+        ai_raw_response = _openrouter_chat_completion(ai_messages, json_output=True)
         ai_reply, mutations = _parse_ai_response(ai_raw_response)
 
         # Store the user message only once the AI reply is valid, so failures leave no orphans.
@@ -504,7 +457,6 @@ def create_app() -> FastAPI:
                     "actionType": mutation["type"],
                     "payload": mutation,
                     "description": _describe_mutation(mutation),
-                    "requiresConfirmation": True,
                 }
             )
 
