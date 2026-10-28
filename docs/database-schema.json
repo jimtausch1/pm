@@ -228,13 +228,6 @@
             "column_id",
             "position"
           ]
-        },
-        {
-          "name": "idx_cards_board_id",
-          "unique": false,
-          "columns": [
-            "board_id"
-          ]
         }
       ]
     },
