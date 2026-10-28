@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Card, Column } from "@/lib/kanban";
@@ -29,10 +29,12 @@ export const KanbanColumn = ({
 }: KanbanColumnProps) => {
   const { setNodeRef } = useDroppable({ id: column.id });
   const [draftTitle, setDraftTitle] = useState(column.title);
+  const [syncedTitle, setSyncedTitle] = useState(column.title);
 
-  useEffect(() => {
+  if (column.title !== syncedTitle) {
+    setSyncedTitle(column.title);
     setDraftTitle(column.title);
-  }, [column.title]);
+  }
 
   return (
     <section

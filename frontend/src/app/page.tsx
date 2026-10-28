@@ -1,32 +1,46 @@
 'use client';
 
 import { KanbanBoard } from '@/components/KanbanBoard';
-import { FormEvent, useEffect, useState } from 'react';
+import { SubmitEvent, useState, useSyncExternalStore } from 'react';
 
 const AUTH_STORAGE_KEY = 'pm-authenticated';
 const AUTH_USERNAME = 'user';
 const AUTH_PASSWORD = 'password';
 
+const subscribeToAuth = (callback: () => void) => {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+const getAuthSnapshot = () =>
+  window.localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
+const getServerAuthSnapshot = () => false;
+
+// localStorage writes don't fire 'storage' in the same tab, so notify subscribers manually.
+const setStoredAuth = (authenticated: boolean) => {
+  if (authenticated) {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+  } else {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+  window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }));
+};
+
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticated = useSyncExternalStore(
+    subscribeToAuth,
+    getAuthSnapshot,
+    getServerAuthSnapshot
+  );
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (saved === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
-      setIsAuthenticated(true);
       setError('');
       setPassword('');
-      window.localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+      setStoredAuth(true);
       return;
     }
 
@@ -34,11 +48,10 @@ export default function Home() {
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
     setUsername('');
     setPassword('');
     setError('');
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setStoredAuth(false);
   };
 
   if (isAuthenticated) {
@@ -47,39 +60,39 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg items-center justify-center px-6">
-      <div className="w-full rounded-[28px] border border-[var(--stroke)] bg-white p-8 shadow-[var(--shadow)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+      <div className="w-full rounded-[28px] border border-(--stroke) bg-white p-8 shadow-(--shadow)">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-(--gray-text)">
           Project Management MVP
         </p>
-        <h1 className="mt-3 font-display text-3xl font-semibold text-[var(--navy-dark)]">
+        <h1 className="mt-3 font-display text-3xl font-semibold text-foreground">
           Sign in
         </h1>
-        <p className="mt-3 text-sm leading-6 text-[var(--gray-text)]">
+        <p className="mt-3 text-sm leading-6 text-(--gray-text)">
           Use the MVP credentials to continue to your board.
         </p>
         <form className="mt-6 space-y-4" onSubmit={handleLogin}>
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--navy-dark)]">
+            <span className="mb-2 block text-sm font-semibold text-foreground">
               Username
             </span>
             <input
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="w-full rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
+              className="w-full rounded-xl border border-(--stroke) bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-(--primary-blue)"
               placeholder="user"
               required
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-[var(--navy-dark)]">
+            <span className="mb-2 block text-sm font-semibold text-foreground">
               Password
             </span>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
+              className="w-full rounded-xl border border-(--stroke) bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-(--primary-blue)"
               placeholder="password"
               required
             />
