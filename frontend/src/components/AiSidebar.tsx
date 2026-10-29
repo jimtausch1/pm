@@ -123,7 +123,7 @@ export const AiSidebar = ({ username, onBoardChange }: AiSidebarProps) => {
   };
 
   return (
-    <aside className="flex max-h-[calc(100vh-8rem)] min-h-155 flex-col rounded-3xl border border-(--stroke) bg-(--surface-strong) p-5 shadow-(--shadow) xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:max-h-none xl:min-h-0">
+    <aside className="flex max-h-[calc(100vh-8rem)] min-h-155 flex-col rounded-3xl border border-(--stroke) bg-(--surface-strong) p-5 shadow-(--shadow) md:sticky md:top-6 md:h-[calc(100vh-3rem)] md:max-h-none md:min-h-0">
       <div className="border-b border-(--stroke) pb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-(--gray-text)">
           AI Assistant

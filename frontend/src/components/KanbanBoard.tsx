@@ -294,7 +294,7 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
           </div>
         </header>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}

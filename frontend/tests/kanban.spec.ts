@@ -134,6 +134,20 @@ test("wraps columns onto multiple rows when they do not fit", async ({ page }) =
   await expectNoHorizontalScroll(page);
 });
 
+test.describe("tablet screen", () => {
+  test.use({ viewport: { width: 820, height: 1180 } });
+
+  test("keeps the AI sidebar to the right of the columns", async ({ page }) => {
+    await signIn(page);
+    const columns = await getBoxes(page.locator('[data-testid^="column-"]'));
+    const [sidebar] = await getBoxes(page.getByRole("complementary"));
+    const boardRight = Math.max(...columns.map((box) => box.x + box.width));
+    expect(sidebar.x).toBeGreaterThanOrEqual(boardRight);
+    expect(sidebar.y).toBeLessThan(columns[0].y + columns[0].height);
+    await expectNoHorizontalScroll(page);
+  });
+});
+
 test.describe("phone screen", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
