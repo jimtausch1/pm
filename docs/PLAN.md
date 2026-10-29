@@ -147,3 +147,12 @@ This document is the execution checklist for the MVP. Work proceeds phase by pha
 
 ### Success criteria
 - User can chat with AI and apply AI-suggested board updates from the sidebar.
+## Part 11: Responsive layout
+
+### Checklist
+- [x] Wrap columns onto new rows when they do not fit the viewport (one per row on phones).
+- [x] Move the AI sidebar to the right of the board on wide screens (sticky), below it on narrow screens.
+- [x] Use pointer-first collision detection so drops target the column under the pointer.
+
+### Validation
+- Playwright checks layout at 1920, 1280 and 390px widths with no horizontal scroll.

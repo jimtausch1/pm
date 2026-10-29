@@ -61,4 +61,15 @@ describe("KanbanBoard", () => {
     await userEvent.type(screen.getByLabelText("Message"), "hello");
     expect(send).toBeEnabled();
   });
+
+  it("renders the AI sidebar after the columns so it lays out on the right", async () => {
+    render(<KanbanBoard username="user" />);
+    await screen.findByText("Seed card");
+    const columns = screen.getAllByTestId(/column-/i);
+    const sidebar = screen.getByRole("complementary");
+    expect(
+      columns[columns.length - 1].compareDocumentPosition(sidebar) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
 });

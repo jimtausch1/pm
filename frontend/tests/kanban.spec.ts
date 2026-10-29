@@ -2,7 +2,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Runs against the FastAPI backend with a fresh seeded database (see playwright.config.ts).
 // Seed cards: 1-2 Backlog, 3 Discovery, 4-5 In Progress, 6 Review, 7-8 Done.
-// At 1280px wide the Done column is past the right edge, so drags start from visible columns.
+// At the default 1280x720 viewport the columns wrap three per row beside the AI sidebar, so drags
+// stay within the first row (Backlog, Discovery, In Progress) unless the test widens the viewport.
+// Tests share one database and run in order, so later tests see earlier moves.
 
 const signIn = async (page: Page) => {
   await page.goto("/");
@@ -43,15 +45,19 @@ test("adds a card and keeps it after reload", async ({ page }) => {
   await expect(page.getByTestId("column-col-backlog").getByText("Playwright card")).toBeVisible();
 });
 
-test("moves a card between columns and keeps it after reload", async ({ page }) => {
-  await signIn(page);
-  const targetColumn = page.getByTestId("column-col-review");
-  await startDrag(page, page.getByTestId("card-1"), targetColumn, 120);
-  await page.mouse.up();
-  await expect(targetColumn.getByTestId("card-1")).toBeVisible();
+test.describe("wide screen drag", () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
 
-  await page.reload();
-  await expect(page.getByTestId("column-col-review").getByTestId("card-1")).toBeVisible();
+  test("moves a card between columns and keeps it after reload", async ({ page }) => {
+    await signIn(page);
+    const targetColumn = page.getByTestId("column-col-review");
+    await startDrag(page, page.getByTestId("card-1"), targetColumn, 120);
+    await page.mouse.up();
+    await expect(targetColumn.getByTestId("card-1")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId("column-col-review").getByTestId("card-1")).toBeVisible();
+  });
 });
 
 test("moves a card in front of the top card of a multi-card column", async ({ page }) => {
@@ -82,4 +88,65 @@ test("logs out back to sign in screen", async ({ page }) => {
   await signIn(page);
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
+const getBoxes = async (locator: Locator) => {
+  const boxes = [];
+  for (const item of await locator.all()) {
+    const box = await item.boundingBox();
+    if (!box) {
+      throw new Error("Unable to resolve element bounds.");
+    }
+    boxes.push(box);
+  }
+  return boxes;
+};
+
+const expectNoHorizontalScroll = async (page: Page) => {
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+};
+
+test.describe("wide screen", () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
+  test("shows all columns in one row with the AI sidebar on the right", async ({ page }) => {
+    await signIn(page);
+    const columns = await getBoxes(page.locator('[data-testid^="column-"]'));
+    const [sidebar] = await getBoxes(page.getByRole("complementary"));
+    expect(new Set(columns.map((box) => Math.round(box.y))).size).toBe(1);
+    const boardRight = Math.max(...columns.map((box) => box.x + box.width));
+    expect(sidebar.x).toBeGreaterThanOrEqual(boardRight);
+    expect(sidebar.y).toBeLessThan(columns[0].y + columns[0].height);
+    await expectNoHorizontalScroll(page);
+  });
+});
+
+test("wraps columns onto multiple rows when they do not fit", async ({ page }) => {
+  await signIn(page);
+  const columns = await getBoxes(page.locator('[data-testid^="column-"]'));
+  const [sidebar] = await getBoxes(page.getByRole("complementary"));
+  expect(new Set(columns.map((box) => Math.round(box.y))).size).toBeGreaterThan(1);
+  const boardRight = Math.max(...columns.map((box) => box.x + box.width));
+  expect(sidebar.x).toBeGreaterThanOrEqual(boardRight);
+  await expectNoHorizontalScroll(page);
+});
+
+test.describe("phone screen", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("stacks columns vertically with the AI sidebar below", async ({ page }) => {
+    await signIn(page);
+    const columns = await getBoxes(page.locator('[data-testid^="column-"]'));
+    const [sidebar] = await getBoxes(page.getByRole("complementary"));
+    for (let i = 1; i < columns.length; i++) {
+      expect(columns[i].x).toBeCloseTo(columns[0].x, 0);
+      expect(columns[i].y).toBeGreaterThanOrEqual(columns[i - 1].y + columns[i - 1].height);
+    }
+    const last = columns[columns.length - 1];
+    expect(sidebar.y).toBeGreaterThanOrEqual(last.y + last.height);
+    await expectNoHorizontalScroll(page);
+  });
 });
