@@ -62,6 +62,17 @@ describe("KanbanBoard", () => {
     expect(send).toBeEnabled();
   });
 
+  it("scrolls to a column when its header pill is clicked", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<KanbanBoard username="user" />);
+    await screen.findByText("Seed card");
+    await userEvent.click(screen.getByRole("button", { name: "done" }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByTestId("column-col-done"));
+  });
+
   it("renders the AI sidebar after the columns so it lays out on the right", async () => {
     render(<KanbanBoard username="user" />);
     await screen.findByText("Seed card");

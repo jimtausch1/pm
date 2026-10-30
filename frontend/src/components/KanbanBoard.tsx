@@ -283,13 +283,19 @@ export const KanbanBoard = ({ username, onLogout }: KanbanBoardProps) => {
           ) : null}
           <div className="flex flex-wrap items-center gap-4">
             {board.columns.map((column) => (
-              <div
+              <button
                 key={column.id}
-                className="flex items-center gap-2 rounded-full border border-(--stroke) px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground"
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById(column.id)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                className="flex items-center gap-2 rounded-full border border-(--stroke) px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-(--primary-blue) hover:text-(--primary-blue)"
               >
                 <span className="h-2 w-2 rounded-full bg-(--accent-yellow)" />
                 {column.title}
-              </div>
+              </button>
             ))}
           </div>
         </header>

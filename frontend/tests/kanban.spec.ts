@@ -163,4 +163,12 @@ test.describe("phone screen", () => {
     expect(sidebar.y).toBeGreaterThanOrEqual(last.y + last.height);
     await expectNoHorizontalScroll(page);
   });
+
+  test("scrolls to a column when its header pill is clicked", async ({ page }) => {
+    await signIn(page);
+    const doneColumn = page.getByTestId("column-col-done");
+    await expect(doneColumn).not.toBeInViewport();
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(doneColumn).toBeInViewport();
+  });
 });

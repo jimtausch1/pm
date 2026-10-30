@@ -39,8 +39,9 @@ export const KanbanColumn = ({
   return (
     <section
       ref={setNodeRef}
+      id={column.id}
       className={clsx(
-        "flex min-h-80 min-w-0 flex-col rounded-3xl border border-(--stroke) bg-(--surface-strong) p-4 shadow-(--shadow) transition sm:min-h-130",
+        "flex min-h-80 min-w-0 scroll-mt-6 flex-col rounded-3xl border border-(--stroke) bg-(--surface-strong) p-4 shadow-(--shadow) transition sm:min-h-130",
         isDropTarget && "ring-2 ring-(--accent-yellow)"
       )}
       data-testid={`column-${column.id}`}
